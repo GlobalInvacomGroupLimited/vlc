@@ -54,6 +54,12 @@ ifeq ($(findstring msys,$(BUILD)),msys)
 MSYS_BUILD := 1
 endif
 
+# pass BUILD_ALL=1 as an argument to make to force download of all required libraries
+# A better way would be to modify bootstrap to use PKGS_DISABLE=all instead
+ifdef BUILD_ALL
+need_pkg = 1
+endif
+
 #
 # Default values for tools
 #
