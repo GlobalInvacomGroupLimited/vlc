@@ -55,7 +55,7 @@ VLC_BOOTSTRAP_ARGS="\
 cd contrib
 mkdir native
 cd native
-../bootstrap #${VLC_BOOTSTRAP_ARGS}
+../bootstrap --disable-chromaprint #${VLC_BOOTSTRAP_ARGS}
 
 # use BUILD_ALL=1 to force download of all required libraries even if installed with distribution
 #make list BUILD_ALL=1
@@ -67,7 +67,7 @@ make BUILD_ALL=1
 ###############
 
 cd $TOP_LEVEL
-./configure
+./configure --enable-chromaprint=no
 make
 
 
