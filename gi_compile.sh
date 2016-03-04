@@ -1,6 +1,35 @@
 #!/bin/sh
 
-export TOP_LEVEL=$(pwd)
+while [ $# -gt 0 ]; do
+    case $1 in
+        help|--help|-h)
+            echo "Use -t|--tag to fetch contrib sources with specific git tag"
+            echo "  e.g --tag v0.00rc1"
+            echo "  only libav,ffmpeg and postproc are available from sourcery"
+            exit 0
+            ;;
+        -t|--tag)
+            GIT_TAG=$2
+            shift
+            ;;
+    esac
+    shift
+done
+
+TOP_LEVEL=$(pwd)
+BUILD_TAG=
+
+if [ -v GIT_TAG ]; then
+  # a git tag has been specified, check if vlc repo is on that tag
+  GIT_LOCATION=$(git log --pretty=format:'%ad %h %d' --abbrev-commit --date=short -1)
+  echo $GIT_LOCATION
+  if [[ $GIT_LOCATION != *$GIT_TAG* ]]; then
+    echo "tag $GIT_TAG not found - run git checkout $GIT_TAG first";
+    exit 0
+  else
+    BUILD_TAG=CHECKOUT_TAG=$GIT_TAG
+  fi
+fi
 
 
 #################
@@ -53,13 +82,13 @@ VLC_BOOTSTRAP_ARGS="\
 "
 
 cd contrib
-mkdir native
+mkdir -p native
 cd native
 ../bootstrap --disable-chromaprint #${VLC_BOOTSTRAP_ARGS}
 
 # use BUILD_ALL=1 to force download of all required libraries even if installed with distribution
 #make list BUILD_ALL=1
-make BUILD_ALL=1
+make BUILD_ALL=1 $BUILD_TAG 
 
 
 ###############
