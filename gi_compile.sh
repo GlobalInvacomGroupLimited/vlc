@@ -42,6 +42,15 @@ fi
 # Get third-party libraries #
 #############################
 
+# All third party libraries are obtained from versioned tar archives from various repositories
+# Except for libav/ffmpeg, postproc and x264
+# libav/ffmpeg and postproc are originally obtained from the HEAD of git repos at git://git.videolan.org
+# and have been changed to mirror repos on sourcery/redmine to enable tagging of specific version
+# x264 still is obtained from an unversioned tar archive from ftp://ftp.videolan.org/pub/videolan/x264/snapshots/
+# x264 is not needed, so this is left unchanged for now
+# This means x264 sources are NOT tagged for now 
+
+
 # Use VLC boostrap arguments from VLC for Android
 VLC_BOOTSTRAP_ARGS="\
     --disable-disc \
