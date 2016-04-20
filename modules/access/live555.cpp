@@ -54,6 +54,7 @@
 #   include <winsock2.h>
 #endif
 
+#include <raptorrtp/giMediaSession.hh>
 #include <UsageEnvironment.hh>
 #include <BasicUsageEnvironment.hh>
 #include <GroupsockHelper.hh>
@@ -152,7 +153,7 @@ namespace {
 typedef struct
 {
     demux_t         *p_demux;
-    MediaSubsession *sub;
+    giMediaSubsession *sub;
 
     es_format_t     fmt;
     es_out_id_t     *p_es;
@@ -717,7 +718,9 @@ static int SessionsSetup( demux_t *p_demux )
 {
     demux_sys_t *p_sys  = (demux_sys_t *)p_demux->p_sys;
     MediaSubsessionIterator *iter   = NULL;
-    MediaSubsession         *sub    = NULL;
+    MediaSubsessionIterator *iterTmp  = NULL;
+    giMediaSubsession         *sub    = NULL;
+    giMediaSubsession         *subTmp = NULL;
 
     bool           b_rtsp_tcp;
     int            i_client_port;
@@ -734,7 +737,7 @@ static int SessionsSetup( demux_t *p_demux )
 
 
     /* Create the session from the SDP */
-    if( !( p_sys->ms = MediaSession::createNew( *p_sys->env, p_sys->p_sdp ) ) )
+    if( !( p_sys->ms = giMediaSession::createNew( *p_sys->env, p_sys->p_sdp ) ) )
     {
         msg_Err( p_demux, "Could not create the RTSP Session: %s",
             p_sys->env->getResultMsg() );
@@ -757,7 +760,8 @@ static int SessionsSetup( demux_t *p_demux )
 
     /* Initialise each media subsession */
     iter = new MediaSubsessionIterator( *p_sys->ms );
-    while( ( sub = iter->next() ) != NULL )
+
+    while( ( sub = dynamic_cast<giMediaSubsession*>( iter->next( ) ) ) != NULL )
     {
         Boolean bInit;
         live_track_t *tk;
@@ -773,6 +777,8 @@ static int SessionsSetup( demux_t *p_demux )
             i_receive_buffer = 2000000;
         }
         else if( !strcmp( sub->mediumName(), "text" ) )
+            ;
+        else if( !strcmp( sub->mediumName(), "application" ) )
             ;
         else continue;
 
@@ -851,6 +857,25 @@ static int SessionsSetup( demux_t *p_demux )
             {
                 /* We need different rollover behaviour for multicast */
                 p_sys->b_multicast = IsMulticastAddress( sub->connectionEndpointAddress() );
+            }
+
+            if( strcasestr( sub->codecName(), "RAPTORFEC" ) )
+            {
+                /* Initialise each media subsession */
+                iterTmp = new MediaSubsessionIterator( *p_sys->ms );
+
+                while( ( subTmp = dynamic_cast<giMediaSubsession*>( iterTmp->next( ) ) ) != NULL )
+                {
+                    if( strcmp(subTmp->codecName(),"MP2T") == 0 )
+                    {
+                        sub->sink = subTmp->raptorRtpSource();
+                        sub->sink->startPlaying( *( sub->readSource( ) ), NULL, NULL );
+                        break;
+                    }
+                }
+
+                delete iterTmp;
+                continue;
             }
 
             tk = (live_track_t*)malloc( sizeof( live_track_t ) );
