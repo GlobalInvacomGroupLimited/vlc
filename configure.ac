@@ -1914,7 +1914,7 @@ AS_IF([test "${enable_live555}" != "no" -a -n "${CXX}"], [
 
     dnl detect include paths
     AS_IF([test -f "${CONTRIB_DIR}/include/UsageEnvironment/UsageEnvironment.hh"], [
-      CPPFLAGS_live555="-I${CONTRIB_DIR}/include/liveMedia -I${CONTRIB_DIR}/include/groupsock -I${CONTRIB_DIR}/include/BasicUsageEnvironment -I${CONTRIB_DIR}/include/UsageEnvironment"
+      CPPFLAGS_live555="-I${CONTRIB_DIR}/include/liveMedia -I${CONTRIB_DIR}/include/groupsock -I${CONTRIB_DIR}/include/BasicUsageEnvironment -I${CONTRIB_DIR}/include/UsageEnvironment -I${CONTRIB_DIR}/include/raptorrtp"
     ], [
       AS_IF([test "${SYS}" != "os2"], [
         LIVE555_PREFIX=${LIVE555_PREFIX-"/usr"}
@@ -1955,7 +1955,7 @@ You can get an updated one from http://www.live555.com/liveMedia .])
         AC_MSG_ERROR([Update live555 or pass --disable-live555 to disable RTSP input support.])
       ])
     ], [
-      other_libs="-lgroupsock -lBasicUsageEnvironment -lUsageEnvironment"
+      other_libs="-lgroupsock -lBasicUsageEnvironment -lUsageEnvironment -lpvraptor -lraptorrtp"
       other_libs_pic="-lgroupsock_pic -lBasicUsageEnvironment_pic -lUsageEnvironment_pic"
       AS_IF([test "${SYS}" = "mingw32"], [
         # add ws2_32 for closesocket, select, recv
