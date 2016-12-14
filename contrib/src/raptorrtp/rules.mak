@@ -58,7 +58,7 @@ raptorrtp: raptorrtp-$(HASH).tar.xz .sum-raptorrtp
 
 .raptorrtp: raptorrtp
 	cd raptorrtp && $(HOSTVARS) ./autogen.sh
-	cd raptorrtp && $(HOSTVARS) ./configure $(HOSTCONF) --enable-static --disable-shared
+	cd raptorrtp && $(HOSTVARS) ./configure $(HOSTCONF) --enable-static --disable-shared --enable-logging
 	cd raptorrtp && $(MAKE)
 	cd raptorrtp && $(MAKE) install
 	touch $@
