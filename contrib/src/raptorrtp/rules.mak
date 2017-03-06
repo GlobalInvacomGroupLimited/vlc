@@ -4,9 +4,9 @@
 RAPTOR_RTP_GI_URL     := ssh://git@sourcery/redmine/vsat-ip/raptorrtp.git
 
 ifndef CHECKOUT_TAG
-HASH=HEAD
+RAPTORRTP_HASH := 6ad3eb9d2da6272fe64eb5020de9a9aabc02315e
 else
-HASH=$(CHECKOUT_TAG)
+RAPTORRTP_HASH := $(CHECKOUT_TAG)
 endif
 
 
@@ -17,11 +17,11 @@ endif
 
 DEPS_raptorrtp = raptor $(DEPS_raptor)
 
-$(TARBALLS)/raptorrtp-$(HASH).tar.xz:
-	$(call download_git,$(RAPTOR_RTP_GI_URL),master,$(HASH))
+$(TARBALLS)/raptorrtp-$(RAPTORRTP_HASH).tar.xz:
+	$(call download_git,$(RAPTOR_RTP_GI_URL),master,$(RAPTORRTP_HASH))
 #	$(call download,$(LIVEDOTCOM_URL))
 
-.sum-raptorrtp: raptorrtp-$(HASH).tar.xz
+.sum-raptorrtp: raptorrtp-$(RAPTORRTP_HASH).tar.xz
 	$(warning Not implemented.)
 	touch $@
 
@@ -47,18 +47,20 @@ else
 endif
 endif
 
-RAPTOR_RTP_EXTRA_CFLAGSEXTRA_CFLAGS := $(EXTRA_CFLAGS) -fexceptions
-
-raptorrtp: raptorrtp-$(HASH).tar.xz .sum-raptorrtp
+raptorrtp: raptorrtp-$(RAPTORRTP_HASH).tar.xz .sum-raptorrtp
 	rm -Rf raptorrtp
 	$(UNPACK)
-	mv raptorrtp-$(HASH) raptorrtp
+	mv raptorrtp-$(RAPTORRTP_HASH) raptorrtp
 	chmod -R u+w raptorrtp
 	touch $@
 
 .raptorrtp: raptorrtp
 	cd raptorrtp && $(HOSTVARS) ./autogen.sh
-	cd raptorrtp && $(HOSTVARS) ./configure $(HOSTCONF) --enable-static --disable-shared --enable-logging
+	cd raptorrtp && $(HOSTVARS) ./configure $(HOSTCONF) --with-liveMedia=$(PREFIX)/include/liveMedia \
+                                                            --with-BasicUsageEnvironment=$(PREFIX)/include/BasicUsageEnvironment \
+                                                            --with-groupsock=$(PREFIX)/include/groupsock \
+                                                            --with-UsageEnvironment=$(PREFIX)/include/UsageEnvironment \
+                                                            --enable-static --disable-shared --enable-logging
 	cd raptorrtp && $(MAKE)
 	cd raptorrtp && $(MAKE) install
 	touch $@
