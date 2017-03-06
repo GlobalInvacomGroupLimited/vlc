@@ -67,7 +67,7 @@ make BUILD_ALL=1
 ###############
 
 cd $TOP_LEVEL
-./configure --enable-chromaprint=no
+./configure --enable-chromaprint=no --disable-wayland
 make
 
 
