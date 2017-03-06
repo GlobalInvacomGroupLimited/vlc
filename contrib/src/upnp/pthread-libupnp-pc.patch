@@ -1,0 +1,12 @@
+diff --git a/libupnp.pc.in b/libupnp.pc.in
+index 227f354..239c4a6 100644
+--- a/libupnp.pc.in
++++ b/libupnp.pc.in
+@@ -6,6 +6,6 @@ includedir=@includedir@
+ Name: libupnp
+ Description: Linux SDK for UPnP Devices
+ Version: @VERSION@
+-Libs: @PTHREAD_CFLAGS@ @PTHREAD_LIBS@ -L${libdir} -lupnp -lthreadutil -lixml 
++Libs: @PTHREAD_CFLAGS@ @PTHREAD_LIBS@ -L${libdir} -lupnp -lpthread -lthreadutil -lixml 
+ Cflags: @PTHREAD_CFLAGS@ -I${includedir}/upnp
+ 
