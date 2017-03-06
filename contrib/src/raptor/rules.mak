@@ -6,9 +6,9 @@
 RAPTOR_URL     := git://sourcery/raptor.git
 
 ifndef CHECKOUT_TAG
-HASH=HEAD
+RAPTOR_HASH := b2908cfa779f0e4307ed88a3b1bc9fb5bcf58a0b
 else
-HASH=$(CHECKOUT_TAG)
+RAPTOR_HASH=$(CHECKOUT_TAG)
 endif
 
 
@@ -21,12 +21,12 @@ endif
 DEPS_raptor = boost $(DEPS_boost)
 
 
-$(TARBALLS)/raptor-$(HASH).tar.xz:
-	$(call download_git,$(RAPTOR_URL),master,$(HASH))
+$(TARBALLS)/raptor-$(RAPTOR_HASH).tar.xz:
+	$(call download_git,$(RAPTOR_URL),master,$(RAPTOR_HASH))
 
 
-.sum-raptor: raptor-$(HASH).tar.xz
-	$(warning Not implemented.)
+.sum-raptor: raptor-$(RAPTOR_HASH).tar.xz
+	$(call check_githash,$(RAPTOR_HASH))
 	touch $@
 
 raptor_TARGET = $(error raptor target not defined!)
@@ -53,10 +53,10 @@ endif
 
 raptor_EXTRA_CFLAGS := $(EXTRA_CFLAGS) -fexceptions
 
-raptor: raptor-$(HASH).tar.xz .sum-raptor
+raptor: raptor-$(RAPTOR_HASH).tar.xz .sum-raptor
 	rm -Rf raptor
 	$(UNPACK)
-	mv raptor-$(HASH) raptor
+	mv raptor-$(RAPTOR_HASH) raptor
 	chmod -R u+w raptor
 	touch $@
 
