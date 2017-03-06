@@ -3,6 +3,15 @@
 LIVE555_VERSION := 2016.11.28
 LIVE555_FILE := live.$(LIVE555_VERSION).tar.gz
 LIVEDOTCOM_URL := http://live555.com/liveMedia/public/$(LIVE555_FILE)
+LIVEGI_URL     := git://sourcery/live555.git
+
+ifndef CHECKOUT_TAG
+LIVE555_HASH := abfa1e9ade5f643e2b95f3c3eae86cea66e8f1e9
+else
+LIVE555_HASH := $(CHECKOUT_TAG)
+endif
+
+
 
 ifdef BUILD_NETWORK
 ifdef GNUV3
@@ -14,10 +23,13 @@ ifeq ($(call need_pkg,"live555"),)
 PKGS_FOUND += live555
 endif
 
-$(TARBALLS)/$(LIVE555_FILE):
-	$(call download_pkg,$(LIVEDOTCOM_URL),live555)
+$(TARBALLS)/live555-$(LIVE555_HASH).tar.xz:
+	$(call download_git,$(LIVEGI_URL),update,$(LIVE555_HASH))
+#	$(call download,$(LIVEDOTCOM_URL))
 
-.sum-live555: $(LIVE555_FILE)
+.sum-live555: live555-$(LIVE555_HASH).tar.xz
+	$(call check_githash,$(LIVE555_HASH))
+	touch $@
 
 LIVE_TARGET = $(error live555 target not defined!)
 ifdef HAVE_LINUX
@@ -43,8 +55,10 @@ endif
 
 LIVE_EXTRA_CFLAGS := $(EXTRA_CFLAGS) -fexceptions $(CFLAGS)
 
-live555: $(LIVE555_FILE) .sum-live555
-	rm -Rf live && $(UNPACK)
+live555: live555-$(LIVE555_HASH).tar.xz .sum-live555
+	rm -Rf live555 && $(UNPACK)
+	
+	mv live555-$(LIVE555_HASH) live
 
 	# Change permissions to patch and sed the source
 	chmod -R u+w live
@@ -65,7 +79,7 @@ ifdef HAVE_ANDROID
 	# Disable locale on Android too
 	cd live && sed -e 's%-DPIC%-DPIC -DNO_SSTREAM=1 -DLOCALE_NOT_USED -I$(ANDROID_NDK)/platforms/$(ANDROID_API)/arch-$(PLATFORM_SHORT_ARCH)/usr/include%' -i.orig config.linux
 endif
-	mv live live.$(LIVE555_VERSION)
+	mv live live555-$(LIVE555_HASH)
 	# Patch for MSG_NOSIGNAL
 	$(APPLY) $(SRC)/live555/live555-nosignal.patch
 	# Don't use FormatMessageA on WinRT
@@ -85,7 +99,7 @@ ifneq ($(LEGACY_NDK), 1)
 endif
 endif
 
-	mv live.$(LIVE555_VERSION) $@ && touch $@
+	mv live555-$(LIVE555_HASH) $@ && touch $@
 
 SUBDIRS=groupsock liveMedia UsageEnvironment BasicUsageEnvironment
 
