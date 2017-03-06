@@ -6,9 +6,9 @@
 BOOST_URL     := git://sourcery/libraries/boost.git
 
 ifndef CHECKOUT_TAG
-HASH=HEAD
+BOOST_HASH := 5e5c1de7137ee01109eb2b1c4325c4ebdcc57571
 else
-HASH=$(CHECKOUT_TAG)
+BOOST_HASH := $(CHECKOUT_TAG)
 endif
 
 
@@ -17,12 +17,12 @@ ifdef BUILD_NETWORK
 PKGS += boost
 endif
 
-$(TARBALLS)/boost-$(HASH).tar.xz:
-	$(call download_git,$(BOOST_URL),master,$(HASH))
+$(TARBALLS)/boost-$(BOOST_HASH).tar.xz:
+	$(call download_git,$(BOOST_URL),,$(BOOST_HASH))
 
 
-.sum-boost: boost-$(HASH).tar.xz
-	$(warning Not implemented.)
+.sum-boost: boost-$(BOOST_HASH).tar.xz
+	$(call check_githash,$(BOOST_HASH))
 	touch $@
 
 boost_TARGET = $(error boost target not defined!)
@@ -49,10 +49,10 @@ endif
 
 boost_EXTRA_CFLAGS := $(EXTRA_CFLAGS) -fexceptions
 
-boost: boost-$(HASH).tar.xz .sum-boost
+boost: boost-$(BOOST_HASH).tar.xz .sum-boost
 	rm -Rf boost
 	$(UNPACK)
-	mv boost-$(HASH) boost
+	mv boost-$(BOOST_HASH) boost
 	chmod -R u+w boost
 	touch $@
 
