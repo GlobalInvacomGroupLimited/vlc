@@ -37,7 +37,12 @@ ifdef HAVE_WINSTORE
 	$(APPLY) $(SRC)/upnp/winrt-inet.patch
 endif
 endif
+
+ifdef HAVE_LINUX 
+ifndef HAVE_ANDROID
 	$(APPLY) $(SRC)/upnp/pthread-libupnp-pc.patch
+endif
+endif
 	$(APPLY) $(SRC)/upnp/libpthread.patch
 	$(APPLY) $(SRC)/upnp/libupnp-ipv6.patch
 	$(APPLY) $(SRC)/upnp/miniserver.patch
