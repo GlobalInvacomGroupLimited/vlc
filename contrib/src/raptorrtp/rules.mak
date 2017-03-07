@@ -4,7 +4,7 @@
 RAPTOR_RTP_GI_URL     := ssh://git@sourcery/redmine/vsat-ip/raptorrtp.git
 
 ifndef CHECKOUT_TAG
-RAPTORRTP_HASH := 6ad3eb9d2da6272fe64eb5020de9a9aabc02315e
+RAPTORRTP_HASH := e3dc419479c760cbbc1c5db3df30182f7ec00ede
 else
 RAPTORRTP_HASH := $(CHECKOUT_TAG)
 endif
