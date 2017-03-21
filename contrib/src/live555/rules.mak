@@ -3,7 +3,7 @@
 LIVE555_VERSION := 2016.11.28
 LIVE555_FILE := live.$(LIVE555_VERSION).tar.gz
 LIVEDOTCOM_URL := http://live555.com/liveMedia/public/$(LIVE555_FILE)
-LIVEGI_URL     := git://sourcery/live555.git
+LIVEGI_URL     := https://github.com/GlobalInvacomGroupLimited/live555.git
 
 ifndef CHECKOUT_TAG
 LIVE555_HASH := abfa1e9ade5f643e2b95f3c3eae86cea66e8f1e9
@@ -24,7 +24,7 @@ PKGS_FOUND += live555
 endif
 
 $(TARBALLS)/live555-$(LIVE555_HASH).tar.xz:
-	$(call download_git,$(LIVEGI_URL),update,$(LIVE555_HASH))
+	$(call download_git,$(LIVEGI_URL),master,$(LIVE555_HASH))
 #	$(call download,$(LIVEDOTCOM_URL))
 
 .sum-live555: live555-$(LIVE555_HASH).tar.xz
