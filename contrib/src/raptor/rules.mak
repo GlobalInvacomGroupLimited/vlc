@@ -6,7 +6,7 @@
 RAPTOR_URL     := https://github.com/GlobalInvacomGroupLimited/raptor.git
 
 ifndef CHECKOUT_TAG
-RAPTOR_HASH := 6b3ed13399d6edf5024d3c0504a73f8d43b37124
+RAPTOR_HASH := 2f44e50290ea1fdd6822cd544ccf2cb760854a36
 else
 RAPTOR_HASH=$(CHECKOUT_TAG)
 endif
