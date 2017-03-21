@@ -3,10 +3,10 @@
 #raptor_FILE := raptor.2016.01.12.tar.gz
 #raptorDOTCOM_URL := http://raptor.com/raptorMedia/public/$(raptor_FILE)
 #raptorDOTCOM_URL := $(CONTRIB_VIDEOLAN)/raptor/$(raptor_FILE)
-RAPTOR_URL     := git://sourcery/raptor.git
+RAPTOR_URL     := https://github.com/GlobalInvacomGroupLimited/raptor.git
 
 ifndef CHECKOUT_TAG
-RAPTOR_HASH := b2908cfa779f0e4307ed88a3b1bc9fb5bcf58a0b
+RAPTOR_HASH := 6b3ed13399d6edf5024d3c0504a73f8d43b37124
 else
 RAPTOR_HASH=$(CHECKOUT_TAG)
 endif
