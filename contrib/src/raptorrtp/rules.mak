@@ -1,10 +1,10 @@
 # raptorrtp
 
 
-RAPTOR_RTP_GI_URL     := ssh://git@sourcery/redmine/vsat-ip/raptorrtp.git
+RAPTOR_RTP_GI_URL     := https://github.com/GlobalInvacomGroupLimited/raptorrtp.git
 
 ifndef CHECKOUT_TAG
-RAPTORRTP_HASH := e3dc419479c760cbbc1c5db3df30182f7ec00ede
+RAPTORRTP_HASH := edc381caa82993050ee9e791348f1c7bef340673
 else
 RAPTORRTP_HASH := $(CHECKOUT_TAG)
 endif
