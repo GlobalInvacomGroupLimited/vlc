@@ -1,28 +1,19 @@
 # boost
 
-#boost_FILE := boost.2016.01.12.tar.gz
-#boostDOTCOM_URL := http://boost.com/boostMedia/public/$(boost_FILE)
-#boostDOTCOM_URL := $(CONTRIB_VIDEOLAN)/boost/$(boost_FILE)
-BOOST_URL     := git://sourcery/libraries/boost.git
-
-ifndef CHECKOUT_TAG
-BOOST_HASH := 5e5c1de7137ee01109eb2b1c4325c4ebdcc57571
-else
-BOOST_HASH := $(CHECKOUT_TAG)
-endif
-
+BOOST_VERSION := 1.63.0
+BOOST_TAR     := 1_63_0
+BOOST_URL     := https://sourceforge.net/projects/boost/files/boost/$(BOOST_VERSION)/boost_$(BOOST_TAR).tar.gz
 
 
 ifdef BUILD_NETWORK
 PKGS += boost
 endif
 
-$(TARBALLS)/boost-$(BOOST_HASH).tar.xz:
-	$(call download_git,$(BOOST_URL),,$(BOOST_HASH))
+$(TARBALLS)/boost_$(BOOST_TAR).tar.gz:
+	$(call download_pkg,$(BOOST_URL),boost)
 
 
-.sum-boost: boost-$(BOOST_HASH).tar.xz
-	$(call check_githash,$(BOOST_HASH))
+.sum-boost: boost_$(BOOST_TAR).tar.gz
 	touch $@
 
 boost_TARGET = $(error boost target not defined!)
@@ -49,10 +40,10 @@ endif
 
 boost_EXTRA_CFLAGS := $(EXTRA_CFLAGS) -fexceptions
 
-boost: boost-$(BOOST_HASH).tar.xz .sum-boost
+boost: boost_$(BOOST_TAR).tar.gz .sum-boost
 	rm -Rf boost
 	$(UNPACK)
-	mv boost-$(BOOST_HASH) boost
+	mv boost_$(BOOST_TAR) boost
 	chmod -R u+w boost
 	touch $@
 
