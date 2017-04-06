@@ -287,7 +287,7 @@ ssize_t vlc_tls_Write(vlc_tls_t *session, const void *buf, size_t len)
         }
         if (iov.iov_len == 0 || val == 0)
             return sent;
-        if (val == -1 && errno != EINTR && errno != EAGAIN)
+        if (val == -1 && errno != EAGAIN)
             return sent ? (ssize_t)sent : -1;
 
         vlc_poll_i11e(&ufd, 1, -1);
