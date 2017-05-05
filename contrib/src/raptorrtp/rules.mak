@@ -4,7 +4,7 @@
 RAPTOR_RTP_GI_URL     := https://github.com/GlobalInvacomGroupLimited/raptorrtp.git
 
 ifndef CHECKOUT_TAG
-RAPTORRTP_HASH := 72627d995c3947de5458391a671b55677731c1a1
+RAPTORRTP_HASH := 0dc70a81dce70835159ce8989472ac17b72bd372
 else
 RAPTORRTP_HASH := $(CHECKOUT_TAG)
 endif
