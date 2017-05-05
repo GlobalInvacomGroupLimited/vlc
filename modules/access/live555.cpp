@@ -94,6 +94,8 @@ static void Close( vlc_object_t * );
     "track, can be increased in case of broken pictures due " \
     "to too small buffer.")
 #define DEFAULT_FRAME_BUFFER_SIZE 250000
+#define FEC_LOGGING_TEXT N_("FEC logging")
+#define FEC_LOGGING_LONGTEXT N_("Enable / Disable FEC logging")
 
 vlc_module_begin ()
     set_description( N_("RTP/RTSP/SDP demuxer (using Live555)" ) )
@@ -141,6 +143,8 @@ vlc_module_begin ()
         add_integer( "rtsp-frame-buffer-size", DEFAULT_FRAME_BUFFER_SIZE,
                      FRAME_BUFFER_SIZE_TEXT, FRAME_BUFFER_SIZE_LONGTEXT,
                      true )
+		add_bool("fec-logging", false, FEC_LOGGING_TEXT, FEC_LOGGING_LONGTEXT, false)
+		    change_safe()
 vlc_module_end ()
 
 
@@ -868,6 +872,10 @@ static int SessionsSetup( demux_t *p_demux )
                 {
                     if( strcmp(subTmp->codecName(),"MP2T") == 0 )
                     {
+                        Boolean fecLogging = var_InheritBool( p_demux, "fec-logging" );
+
+                        subTmp->raptorRtpSource()->configLogToFile( fecLogging );
+
                         sub->sink = subTmp->raptorRtpSource();
                         sub->sink->startPlaying( *( sub->readSource( ) ), NULL, NULL );
                         break;
