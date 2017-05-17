@@ -783,7 +783,7 @@ static int SessionsSetup( demux_t *p_demux )
         else if( !strcmp( sub->mediumName(), "text" ) )
             ;
         else if( !strcmp( sub->mediumName(), "application" ) )
-            ;
+            i_receive_buffer = 2000000;
         else continue;
 
         if( strcasestr( sub->codecName(), "REAL" ) )
