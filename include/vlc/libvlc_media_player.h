@@ -409,6 +409,14 @@ typedef unsigned (*libvlc_video_format_cb)(void **opaque, char *chroma,
                                            unsigned *lines);
 
 /**
+ * Callback prototype to get fec stats.
+ *
+ * \param data. Private data
+ */
+typedef void (*libvlc_fec_stats_cb) (void *opaque, void *data);
+
+
+/**
  * Callback prototype to configure picture buffers format.
  *
  * \param opaque private pointer as passed to libvlc_video_set_callbacks()
@@ -481,6 +489,17 @@ LIBVLC_API
 void libvlc_video_set_format( libvlc_media_player_t *mp, const char *chroma,
                               unsigned width, unsigned height,
                               unsigned pitch );
+
+/**
+ * Set callback to receive FEC stats.
+ *
+ * \param mp the media player
+ * \param the callback function (cannot be NULL)
+ * \version LibVLC 2.0.0 or later
+ */
+LIBVLC_API
+void libvlc_fec_set_status_callbacks ( libvlc_media_player_t *mp, libvlc_fec_stats_cb fecStats, void *opaque  );
+
 
 /**
  * Set decoded video chroma and dimensions. This only works in combination with

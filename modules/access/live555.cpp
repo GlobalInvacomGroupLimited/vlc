@@ -97,6 +97,8 @@ static void Close( vlc_object_t * );
 #define FEC_LOGGING_TEXT N_("FEC logging")
 #define FEC_LOGGING_LONGTEXT N_("Enable / Disable FEC logging")
 
+typedef void (*vlc_fec_cb)( void* sys, void * data);
+
 vlc_module_begin ()
     set_description( N_("RTP/RTSP/SDP demuxer (using Live555)" ) )
     set_capability( "demux", 50 )
@@ -143,8 +145,8 @@ vlc_module_begin ()
         add_integer( "rtsp-frame-buffer-size", DEFAULT_FRAME_BUFFER_SIZE,
                      FRAME_BUFFER_SIZE_TEXT, FRAME_BUFFER_SIZE_LONGTEXT,
                      true )
-		add_bool("fec-logging", false, FEC_LOGGING_TEXT, FEC_LOGGING_LONGTEXT, false)
-		    change_safe()
+	add_bool("fec-logging", false, FEC_LOGGING_TEXT, FEC_LOGGING_LONGTEXT, false)
+	    change_safe()
 vlc_module_end ()
 
 
@@ -251,6 +253,9 @@ struct demux_sys_t
     int              i_live555_ret; /* live555 callback return code */
 
     float            f_seek_request;/* In case we receive a seek request while paused*/
+
+    void             *opaque;
+    vlc_fec_cb       fec_cb;
 };
 
 
@@ -356,6 +361,10 @@ static int  Open ( vlc_object_t *p_this )
         delete p_sys;
         return VLC_ENOMEM;
     }
+
+    p_sys->fec_cb = (vlc_fec_cb) var_InheritAddress(p_demux, "fec-callback");
+
+    p_sys->opaque = var_InheritAddress(p_demux, "fec-data");
 
     msg_Dbg( p_demux, "version " LIVEMEDIA_LIBRARY_VERSION_STRING );
 
@@ -523,6 +532,16 @@ static void default_live555_callback( RTSPClient* client, int result_code, char*
     p_sys->i_live555_ret = result_code;
     p_sys->b_error = p_sys->i_live555_ret != 0;
     p_sys->event_rtsp = 1;
+}
+
+static void process_fec_stats_callback( void* data, fecstats_t stats )
+{
+    demux_sys_t *p_sys = (demux_sys_t *) data;
+
+    if( p_sys->fec_cb != NULL )
+    {
+        p_sys->fec_cb(p_sys->opaque, (void *) &stats );
+    }
 }
 
 /* return true if the RTSP command succeeded */
@@ -875,6 +894,8 @@ static int SessionsSetup( demux_t *p_demux )
                         Boolean fecLogging = var_InheritBool( p_demux, "fec-logging" );
 
                         subTmp->raptorRtpSource()->configLogToFile( fecLogging );
+
+                        subTmp->raptorRtpSource()->setStatsCB( process_fec_stats_callback, (void *) p_sys );
 
                         sub->sink = subTmp->raptorRtpSource();
                         sub->sink->startPlaying( *( sub->readSource( ) ), NULL, NULL );
