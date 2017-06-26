@@ -586,6 +586,8 @@ libvlc_media_player_new( libvlc_instance_t *instance )
     var_Create (mp, "vmem-unlock", VLC_VAR_ADDRESS);
     var_Create (mp, "vmem-display", VLC_VAR_ADDRESS);
     var_Create (mp, "vmem-data", VLC_VAR_ADDRESS);
+    var_Create (mp, "fec-callback", VLC_VAR_ADDRESS);
+    var_Create (mp, "fec-data", VLC_VAR_ADDRESS);
     var_Create (mp, "vmem-setup", VLC_VAR_ADDRESS);
     var_Create (mp, "vmem-cleanup", VLC_VAR_ADDRESS);
     var_Create (mp, "vmem-chroma", VLC_VAR_STRING | VLC_VAR_DOINHERIT);
@@ -1106,6 +1108,12 @@ bool libvlc_video_direct3d_set_callbacks(libvlc_media_player_t *mp,
     var_SetAddress( mp, "vout-cb-make-current", makeCurrent_cb );
     var_SetAddress( mp, "vout-cb-select-plane", select_plane_cb );
     return true;
+}
+
+void libvlc_fec_set_status_callbacks ( libvlc_media_player_t *mp, void (*fec_cb) (void *, void *), void *opaque )
+{
+	var_SetAddress( mp, "fec-callback", fec_cb );
+    var_SetAddress( mp, "fec-data", opaque );
 }
 
 /**************************************************************************
