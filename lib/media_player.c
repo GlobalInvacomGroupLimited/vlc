@@ -629,6 +629,8 @@ libvlc_media_player_new( libvlc_instance_t *instance )
     var_Create (mp, "vmem-unlock", VLC_VAR_ADDRESS);
     var_Create (mp, "vmem-display", VLC_VAR_ADDRESS);
     var_Create (mp, "vmem-data", VLC_VAR_ADDRESS);
+    var_Create (mp, "fec-callback", VLC_VAR_ADDRESS);
+    var_Create (mp, "fec-data", VLC_VAR_ADDRESS);
     var_Create (mp, "vmem-setup", VLC_VAR_ADDRESS);
     var_Create (mp, "vmem-cleanup", VLC_VAR_ADDRESS);
     var_Create (mp, "vmem-chroma", VLC_VAR_STRING | VLC_VAR_DOINHERIT);
@@ -1134,6 +1136,12 @@ void libvlc_video_set_format( libvlc_media_player_t *mp, const char *chroma,
     var_SetInteger( mp, "vmem-width", width );
     var_SetInteger( mp, "vmem-height", height );
     var_SetInteger( mp, "vmem-pitch", pitch );
+}
+
+void libvlc_fec_set_status_callbacks ( libvlc_media_player_t *mp, void (*fec_cb) (void *, void *), void *opaque )
+{
+	var_SetAddress( mp, "fec-callback", fec_cb );
+    var_SetAddress( mp, "fec-data", opaque );
 }
 
 /**************************************************************************
