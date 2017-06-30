@@ -1,0 +1,13 @@
+diff --git a/configure b/configure
+index 6431313..9741d8e 100755
+--- a/configure
++++ b/configure
+@@ -6919,7 +6919,7 @@ Cflags: -I\${includedir}
+ EOF
+ }
+ 
+-pkgconfig_generate libavutil     "FFmpeg utility library"               "$LIBAVUTIL_VERSION"     "$LIBRT $LIBM"
++pkgconfig_generate libavutil     "FFmpeg utility library"               "$LIBAVUTIL_VERSION"     "$LIBRT $LIBM $extralibs"
+ pkgconfig_generate libavcodec    "FFmpeg codec library"                 "$LIBAVCODEC_VERSION"    "$extralibs"
+ pkgconfig_generate libavformat   "FFmpeg container format library"      "$LIBAVFORMAT_VERSION"   "$extralibs"
+ pkgconfig_generate libavdevice   "FFmpeg device handling library"       "$LIBAVDEVICE_VERSION"   "$extralibs"
