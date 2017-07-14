@@ -411,7 +411,7 @@ static int  Open ( vlc_object_t *p_this )
         /* Gather the complete sdp file */
         int     i_sdp       = 0;
         int     i_sdp_max   = 1000;
-        uint8_t *p_sdp      = (uint8_t*) malloc( i_sdp_max );
+        uint8_t *p_sdp      = (uint8_t*) calloc( 1, i_sdp_max );
 
         if( !p_sdp )
         {
@@ -448,6 +448,9 @@ static int  Open ( vlc_object_t *p_this )
         else
         {
             int length = strlen ( p_demux->psz_location );
+
+            msg_Dbg( p_demux, "psz_location = %s", p_demux->psz_location );
+            msg_Dbg( p_demux, "length = %d",length);
             if( length > i_sdp_max)
             {
                 p_sdp = (uint8_t*)xrealloc( p_sdp, length );
@@ -455,6 +458,7 @@ static int  Open ( vlc_object_t *p_this )
             memcpy( p_sdp, p_demux->psz_location, length );
         }
         p_sys->p_sdp = (char*)p_sdp;
+        msg_Dbg( p_demux, "p_sys->p_sdp = %s",p_sys->p_sdp );
     }
     else if( ( i_return = Connect( p_demux ) ) != VLC_SUCCESS )
     {
