@@ -419,27 +419,40 @@ static int  Open ( vlc_object_t *p_this )
             goto error;
         }
 
-        for( ;; )
+        if( strcasecmp( p_demux->psz_access, "sdp" ) )
         {
-            int i_read = vlc_stream_Read( p_demux->s, &p_sdp[i_sdp],
+
+            for( ;; )
+            {
+                int i_read = vlc_stream_Read( p_demux->s, &p_sdp[i_sdp],
                                       i_sdp_max - i_sdp - 1 );
-            if( i_read < 0 )
-            {
-                msg_Err( p_demux, "failed to read SDP" );
-                free( p_sdp );
-                goto error;
+                if( i_read < 0 )
+                {
+                    msg_Err( p_demux, "failed to read SDP" );
+                    free( p_sdp );
+                    goto error;
+                }
+
+                i_sdp += i_read;
+
+                if( i_read < i_sdp_max - i_sdp - 1 )
+                {
+                    p_sdp[i_sdp] = '\0';
+                    break;
+                }
+
+                i_sdp_max += 1000;
+                p_sdp = (uint8_t*)xrealloc( p_sdp, i_sdp_max );
             }
-
-            i_sdp += i_read;
-
-            if( i_read < i_sdp_max - i_sdp - 1 )
+        }
+        else
+        {
+            int length = strlen ( p_demux->psz_location );
+            if( length > i_sdp_max)
             {
-                p_sdp[i_sdp] = '\0';
-                break;
+                p_sdp = (uint8_t*)xrealloc( p_sdp, length );
             }
-
-            i_sdp_max += 1000;
-            p_sdp = (uint8_t*)xrealloc( p_sdp, i_sdp_max );
+            memcpy( p_sdp, p_demux->psz_location, length );
         }
         p_sys->p_sdp = (char*)p_sdp;
     }
