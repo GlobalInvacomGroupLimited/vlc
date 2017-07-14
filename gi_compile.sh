@@ -103,6 +103,9 @@ make $BUILD_TAG
 # compile VLC #
 ###############
 
+# Debug build options:
+#--enable-debug --disable-optimizations CFLAGS="-g -Og" CXXFLAGS="-g -Og"
+
 cd $TOP_LEVEL
 ./configure --enable-chromaprint=no --disable-wayland
 make
