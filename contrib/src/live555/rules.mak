@@ -1,12 +1,12 @@
 # live555
 
-LIVE555_VERSION := 2016.11.28
+LIVE555_VERSION := 2018.11.26
 LIVE555_FILE := live.$(LIVE555_VERSION).tar.gz
 LIVEDOTCOM_URL := http://live555.com/liveMedia/public/$(LIVE555_FILE)
 LIVEGI_URL     := https://github.com/GlobalInvacomGroupLimited/live555.git
 
 ifndef CHECKOUT_TAG
-LIVE555_HASH := abfa1e9ade5f643e2b95f3c3eae86cea66e8f1e9
+LIVE555_HASH := 4ecf545e303fe0e996f464f1e7febb5df0661044
 else
 LIVE555_HASH := $(CHECKOUT_TAG)
 endif
@@ -19,9 +19,9 @@ PKGS += live555
 endif
 endif
 
-ifeq ($(call need_pkg,"live555"),)
-PKGS_FOUND += live555
-endif
+#ifeq ($(call need_pkg,"live555"),)
+#PKGS_FOUND += live555
+#endif
 
 $(TARBALLS)/live555-$(LIVE555_HASH).tar.xz:
 	$(call download_git,$(LIVEGI_URL),master,$(LIVE555_HASH))
@@ -76,19 +76,19 @@ live555: live555-$(LIVE555_HASH).tar.xz .sum-live555
 	cd live && sed -e 's%-DSOLARIS%-DSOLARIS -DXLOCALE_NOT_USED%' -i.orig config.solaris-*bit
 ifdef HAVE_ANDROID
 	# Disable locale on Android too
-	cd live && sed -e 's%-DPIC%-DPIC -DNO_SSTREAM=1 -DLOCALE_NOT_USED -I$(ANDROID_NDK)/platforms/android-$(ANDROID_API)/arch-$(PLATFORM_SHORT_ARCH)/usr/include%' -i.orig config.linux
+	cd live && sed -e 's%-DPIC%-DPIC -DNO_SSTREAM=1 -DLOCALE_NOT_USED -I$(ANDROID_NDK)/platforms/android-$(ANDROID_API)/arch-$(PLATFORM_SHORT_ARCH)/usr/include%' -i.orig config.linux-with-shared-libraries
 endif
 	mv live live555-$(LIVE555_HASH)
 	# Patch for MSG_NOSIGNAL
 	$(APPLY) $(SRC)/live555/live555-nosignal.patch
 	# Don't use FormatMessageA on WinRT
-	$(APPLY) $(SRC)/live555/winstore.patch
+	#$(APPLY) $(SRC)/live555/winstore.patch
 	# Don't rely on undefined behaviors
-	$(APPLY) $(SRC)/live555/no-null-reference.patch
+	#$(APPLY) $(SRC)/live555/no-null-reference.patch
 	# Add a pkg-config file
 	$(APPLY) $(SRC)/live555/add-pkgconfig-file.patch
 	# Expose Server:
-	$(APPLY) $(SRC)/live555/expose_server_string.patch
+	#$(APPLY) $(SRC)/live555/expose_server_string.patch
 	# Fix creating static libs on mingw
 	$(APPLY) $(SRC)/live555/mingw-static-libs.patch
 	# FormatMessageA is available on all Windows versions, even WinRT
@@ -114,5 +114,4 @@ SUBDIRS=groupsock liveMedia UsageEnvironment BasicUsageEnvironment
 	cd $< && ./genMakefiles $(LIVE_TARGET)
 	cd $< && for subdir in $(SUBDIRS); do $(MAKE) $(HOSTVARS) -C $$subdir; done
 	cd $< && for subdir in $(SUBDIRS); do $(MAKE) $(HOSTVARS) -C $$subdir install; done
-	cd $< && $(MAKE) install_shared_libraries
 	touch $@
