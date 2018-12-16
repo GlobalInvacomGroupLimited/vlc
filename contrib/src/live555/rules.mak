@@ -6,7 +6,7 @@ LIVEDOTCOM_URL := http://live555.com/liveMedia/public/$(LIVE555_FILE)
 LIVEGI_URL     := https://github.com/GlobalInvacomGroupLimited/live555.git
 
 ifndef CHECKOUT_TAG
-LIVE555_HASH := 4ecf545e303fe0e996f464f1e7febb5df0661044
+LIVE555_HASH := 0ca35313a73d11d84d5417488a5ce81aa9bb4ae4
 else
 LIVE555_HASH := $(CHECKOUT_TAG)
 endif
