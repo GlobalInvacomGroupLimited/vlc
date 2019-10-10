@@ -411,7 +411,7 @@ static int  Open ( vlc_object_t *p_this )
         /* Gather the complete sdp file */
         int     i_sdp       = 0;
         int     i_sdp_max   = 1000;
-        uint8_t *p_sdp      = (uint8_t*) calloc( 1, i_sdp_max );
+        uint8_t *p_sdp      = (uint8_t*) malloc( i_sdp_max );
 
         if( !p_sdp )
         {
@@ -419,46 +419,29 @@ static int  Open ( vlc_object_t *p_this )
             goto error;
         }
 
-        if( strcasecmp( p_demux->psz_access, "sdp" ) )
+        for( ;; )
         {
-
-            for( ;; )
-            {
-                int i_read = vlc_stream_Read( p_demux->s, &p_sdp[i_sdp],
+            int i_read = vlc_stream_Read( p_demux->s, &p_sdp[i_sdp],
                                       i_sdp_max - i_sdp - 1 );
-                if( i_read < 0 )
-                {
-                    msg_Err( p_demux, "failed to read SDP" );
-                    free( p_sdp );
-                    goto error;
-                }
-
-                i_sdp += i_read;
-
-                if( i_read < i_sdp_max - i_sdp - 1 )
-                {
-                    p_sdp[i_sdp] = '\0';
-                    break;
-                }
-
-                i_sdp_max += 1000;
-                p_sdp = (uint8_t*)xrealloc( p_sdp, i_sdp_max );
-            }
-        }
-        else
-        {
-            int length = strlen ( p_demux->psz_location );
-
-            msg_Dbg( p_demux, "psz_location = %s", p_demux->psz_location );
-            msg_Dbg( p_demux, "length = %d",length);
-            if( length > i_sdp_max)
+            if( i_read < 0 )
             {
-                p_sdp = (uint8_t*)xrealloc( p_sdp, length );
+                msg_Err( p_demux, "failed to read SDP" );
+                free( p_sdp );
+                goto error;
             }
-            memcpy( p_sdp, p_demux->psz_location, length );
+
+            i_sdp += i_read;
+
+            if( i_read < i_sdp_max - i_sdp - 1 )
+            {
+                p_sdp[i_sdp] = '\0';
+                break;
+            }
+
+            i_sdp_max += 1000;
+            p_sdp = (uint8_t*)xrealloc( p_sdp, i_sdp_max );
         }
         p_sys->p_sdp = (char*)p_sdp;
-        msg_Dbg( p_demux, "p_sys->p_sdp = %s",p_sys->p_sdp );
     }
     else if( ( i_return = Connect( p_demux ) ) != VLC_SUCCESS )
     {
