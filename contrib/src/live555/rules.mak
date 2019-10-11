@@ -58,6 +58,8 @@ endif
 
 live555: live555-$(LIVE555_HASH).tar.xz .sum-live555
 	rm -Rf live && $(UNPACK)
+	
+	mv live555-$(LIVE555_HASH) live
 
 	# Change permissions to patch and sed the source
 	chmod -R u+w live
