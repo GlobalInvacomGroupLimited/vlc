@@ -2226,6 +2226,17 @@ LIBVLC_API int libvlc_audio_get_track( libvlc_media_player_t *p_mi );
  */
 LIBVLC_API int libvlc_audio_set_track( libvlc_media_player_t *p_mi, int i_track );
 
+
+/**
+ * Unset current audio track.
+ *
+ * \param p_mi media player
+ * \param i_track the track ID (i_id field from track description)
+ * \return 0 on success, -1 on error
+ */
+LIBVLC_API int libvlc_audio_unset_track( libvlc_media_player_t *p_mi, int i_track );
+
+
 /**
  * Get current audio channel.
  *
