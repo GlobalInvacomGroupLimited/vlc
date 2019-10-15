@@ -394,6 +394,36 @@ end:
     return i_ret;
 }
 
+
+/*****************************************************************************
+ * libvlc_audio_unset_track : Set the current audio track
+ *****************************************************************************/
+int libvlc_audio_unset_track( libvlc_media_player_t *p_mi, int i_track )
+{
+    int i_ret = -1;
+
+    vlc_player_t *player = p_mi->player;
+    vlc_player_Lock(player);
+
+    size_t count = vlc_player_GetAudioTrackCount(player);
+    for( size_t i = 0; i < count; i++ )
+    {
+        const struct vlc_player_track *track =
+            vlc_player_GetAudioTrackAt(player, i);
+        if (i_track == vlc_es_id_GetInputId(track->es_id))
+        {
+            /* found */
+            vlc_player_UnselectTrack(player, track);
+            i_ret = 0;
+            goto end;
+        }
+    }
+    libvlc_printerr( "Track identifier not found" );
+end:
+    vlc_player_Unlock(player);
+    return i_ret;
+}
+
 /*****************************************************************************
  * libvlc_audio_get_channel : Get the current audio channel
  *****************************************************************************/
