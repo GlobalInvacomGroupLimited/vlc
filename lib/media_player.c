@@ -1051,7 +1051,7 @@ bool libvlc_video_set_output_callbacks(libvlc_media_player_t *mp,
     static_assert(libvlc_video_engine_disable == 0, "No engine set must default to 0");
 #ifdef __ANDROID__
     //use the default android window
-    var_SetString( mp, "window", "");
+    var_SetString( mp, "window", "wdummy");
 #else
     var_SetString( mp, "window", "wextern");
 #endif
