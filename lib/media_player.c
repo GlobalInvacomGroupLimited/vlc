@@ -1043,7 +1043,7 @@ bool libvlc_video_set_output_callbacks(libvlc_media_player_t *mp,
 {
 #ifdef __ANDROID__
     //use the default android window
-    var_SetString( mp, "window", "");
+    var_SetString( mp, "window", "wdummy");
 #else
     var_SetString( mp, "window", "wdummy");
 #endif
