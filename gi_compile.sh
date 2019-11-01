@@ -31,16 +31,16 @@ fi
 # Build buildsystem tools #
 ###########################
 
-#export PATH="`pwd`/extras/tools/build/bin:$PATH"
-#echo "Building tools"
-#cd extras/tools
-#./bootstrap
-#checkfail "buildsystem tools: bootstrap failed"
-#make $MAKEFLAGS
-#checkfail "buildsystem tools: make failed"
-#make $MAKEFLAGS .gas || make $MAKEFLAGS .buildgas
-#checkfail "buildsystem tools: make failed"
-#cd ../..
+export PATH="`pwd`/extras/tools/build/bin:$PATH"
+echo "Building tools"
+cd extras/tools
+./bootstrap
+checkfail "buildsystem tools: bootstrap failed"
+make $MAKEFLAGS
+checkfail "buildsystem tools: make failed"
+make $MAKEFLAGS .gas || make $MAKEFLAGS .buildgas
+checkfail "buildsystem tools: make failed"
+cd ../..
 
 
 #############
@@ -74,7 +74,7 @@ VLC_BOOTSTRAP_ARGS="\
     --disable-caca \
     --disable-gettext \
     --disable-mpcdec \
-    --enable-upnp \
+    --disable-upnp \
     --disable-gme \
     --disable-tremor \
     --enable-vorbis \
@@ -86,7 +86,7 @@ VLC_BOOTSTRAP_ARGS="\
     --disable-aribb24 \
     --disable-aribb25 \
     --enable-mpg123 \
-    --enable-libdsm \
+    --disable-libdsm \
     --enable-libarchive \
     --disable-libmpeg2 \
     --enable-soxr \
@@ -127,7 +127,7 @@ VLC_CONFIGURE_ARGS="\
     --enable-lua \
     --disable-vcd \
     --disable-v4l2 \
-    --enable-dvdread \
+    --disable-dvdread \
     --enable-dvdnav \
     --disable-bluray \
     --disable-linsys \
@@ -157,7 +157,6 @@ VLC_CONFIGURE_ARGS="\
     --disable-udev \
     --enable-libxml2 \
     --disable-caca \
-    --enable-gles2 \
     --disable-goom \
     --disable-projectm \
     --enable-sout \
@@ -168,7 +167,6 @@ VLC_CONFIGURE_ARGS="\
     --enable-jpeg \
     --enable-chromaprint=no \
     --disable-wayland
-
 "
 
 EXTRA_CFLAGS="${EXTRA_CFLAGS} -fpic"
@@ -201,5 +199,3 @@ make $MAKEFLAGS
 cd $TOP_LEVEL
 ./configure --enable-chromaprint=no --disable-wayland ${VLC_CONFIGURE_ARGS}
 make $MAKEFLAGS
-
-
