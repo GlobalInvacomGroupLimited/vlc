@@ -1,10 +1,21 @@
 #!/bin/sh
 
 export CFLAGS="-I/opt/vc/include/ -I/opt/vc/include/interface/vcos/pthreads -I/opt/vc/include/interface/vmcs_host/linux -I/opt/vc/include/interface/mmal -I/opt/vc/include/interface/vchiq_arm -I/opt/vc/include/IL -I/opt/vc/include/GLES2 -mfloat-abi=hard -mcpu=cortex-a7 -mfpu=neon-vfpv4"
-
+export GLES2_CFLAGS="-I/opt/vc/include/ -I/opt/vc/include/interface/vcos/pthreads -I/opt/vc/include/interface/vmcs_host/linux -I/opt/vc/include/interface/mmal -I/opt/vc/include/interface/vchiq_arm -I/opt/vc/include/IL -I/opt/vc/include/GLES2"
 export CXXFLAGS="-I/opt/vc/include/ -I/opt/vc/include/interface/vcos/pthreads -I/opt/vc/include/interface/vmcs_host/linux -I/opt/vc/include/interface/mmal -I/opt/vc/include/interface/vchiq_arm -I/opt/vc/include/IL -mfloat-abi=hard -I/opt/vc/include/GLES2 -mcpu=cortex-a7 -mfpu=neon-vfpv4"
 
 export LDFLAGS="-L/opt/vc/lib"
+export GLES2_LIBS="-L/opt/vc/lib"
+
+avlc_checkfail()
+{
+    if [ ! $? -eq 0 ];then
+        echo "$1"
+        exit 1
+    fi
+}
+
+
 
 while [ $# -gt 0 ]; do
     case $1 in
@@ -54,55 +65,192 @@ fi
 # and have been changed to mirror repos on sourcery/redmine to enable tagging of specific version
 # x264 still is obtained from an unversioned tar archive from ftp://ftp.videolan.org/pub/videolan/x264/snapshots/
 # x264 is not needed, so this is left unchanged for now
-# This means x264 sources are NOT tagged for now 
+# This means x264 sources are NOT tagged for now
 
 
-# Use VLC boostrap arguments from VLC for Android
 VLC_BOOTSTRAP_ARGS="\
     --disable-disc \
-    --disable-sout \
-    --enable-dvdread \
-    --enable-dvdnav \
     --disable-dca \
     --disable-goom \
     --disable-chromaprint \
-    --disable-lua \
     --disable-schroedinger \
     --disable-sdl \
     --disable-SDL_image \
     --disable-fontconfig \
-    --enable-zvbi \
     --disable-kate \
     --disable-caca \
     --disable-gettext \
     --disable-mpcdec \
-    --enable-upnp \
     --disable-gme \
     --disable-tremor \
-    --enable-vorbis \
     --disable-sidplay2 \
     --disable-samplerate \
     --disable-faad2 \
-    --enable-harfbuzz \
-    --enable-iconv \
     --disable-aribb24 \
     --disable-aribb25 \
-    --enable-mpg123 \
-    --enable-libdsm \
-    --enable-libarchive \
     --disable-libmpeg2 \
-    --enable-soxr \
-    --disable-libnfs \
-    --disable-nfs \
+    --disable-mad \
+    --disable-vncclient \
+    --disable-vnc \
+    --disable-srt \
+    --disable-x265 \
+    --disable-medialibrary \
+    --disable-		lua"
+
+###########################
+# VLC CONFIGURE ARGUMENTS #
+###########################
+
+VLC_CONFIGURE_ARGS="\
+    --with-pic \
+    --disable-nls \
+    --enable-live555 --enable-realrtsp \
+    --enable-avformat \
+    --enable-swscale \
+    --enable-avcodec \
+    --enable-opus \
+    --enable-opensles \
+    --enable-matroska \
+    --enable-taglib \
+    --enable-dvbpsi \
+    --disable-vlc --disable-shared \
+    --disable-update-check \
+    --disable-vlm \
+    --disable-dbus \
+    --disable-lua \
+    --disable-vcd \
+    --disable-v4l2 \
+    --disable-dvdread \
+    --disable-dvdnav \
+    --disable-bluray \
+    --disable-linsys \
+    --disable-decklink \
+    --disable-libva \
+    --disable-dv1394 \
+    --enable-mod \
+    --disable-sid \
+    --disable-gme \
+    --disable-tremor \
+    --disable-mad \
+    --enable-mpg123 \
+    --disable-dca \
+    --disable-sdl-image \
+    --enable-zvbi \
+    --disable-fluidsynth \
+    --disable-fluidlite \
+    --disable-jack \
+    --disable-pulse \
+    --disable-alsa \
+    --disable-samplerate \
+    --disable-xcb \
+    --disable-qt \
+    --disable-skins2 \
+    --disable-mtp \
+    --disable-notify \
+    --enable-libass \
+    --disable-svg \
+    --disable-udev \
+    --enable-libxml2 \
+    --disable-caca \
+    --enable-gles2 \
+    --disable-goom \
+    --disable-projectm \
+    --enable-sout \
+    --enable-vorbis \
+    --disable-faad \
+    --disable-schroedinger \
+    --disable-vnc \
+    --enable-jpeg \
+    --enable-smb2 \
 "
+
+########################
+# VLC MODULE BLACKLIST #
+########################
+
+VLC_MODULE_BLACKLIST="
+    addons.*
+    stats
+    access_(bd|shm|imem)
+    oldrc
+    real
+    hotkeys
+    gestures
+    sap
+    dynamicoverlay
+    rss
+    ball
+    audiobargraph_[av]
+    clone
+    mosaic
+    osdmenu
+    puzzle
+    mediadirs
+    t140
+    ripple
+    motion
+    sharpen
+    grain
+    posterize
+    mirror
+    wall
+    scene
+    blendbench
+    psychedelic
+    alphamask
+    netsync
+    audioscrobbler
+    motiondetect
+    motionblur
+    export
+    smf
+    podcast
+    bluescreen
+    erase
+    stream_filter_record
+    speex_resampler
+    remoteosd
+    magnify
+    gradient
+    dtstofloat32
+    logger
+    visual
+    fb
+    aout_file
+    yuv
+    .dummy
+"
+
+
+
+###########################
+# Build buildsystem tools #
+###########################
+
+VLC_SRC_DIR=$PWD
+
+export PATH="$VLC_SRC_DIR/extras/tools/build/bin:$PATH"
+echo "Building tools"
+cd $VLC_SRC_DIR/extras/tools
+./bootstrap
+avlc_checkfail "buildsystem tools: bootstrap failed"
+make -j3
+avlc_checkfail "buildsystem tools: make failed"
+make -j3 .	gas || make -j3 .buildgas		
+avlc_checkfail "buildsystem tools: make failed"
+cd $VLC_SRC_DIR
+
+
+
+
 
 cd contrib
 mkdir -p native
 cd native
-../bootstrap --disable-chromaprint --enable-dvbpsi #${VLC_BOOTSTRAP_ARGS}
+../bootstrap --disable-chromaprint --enable-dvbpsi ${VLC_BOOTSTRAP_ARGS}
 
 # use BUILD_ALL=1 to force download of all required libraries even if installed with distribution
-make $BUILD_TAG 
+make -j3 $BUILD_TAG
 
 
 ###############
@@ -113,5 +261,5 @@ make $BUILD_TAG
 #--enable-debug --disable-optimizations CFLAGS="-g -Og" CXXFLAGS="-g -Og"
 
 cd $TOP_LEVEL
-./configure --prefix=/usr --enable-omxil --enable-omxil-vout --enable-rpi-omxil --disable-mmal --disable-mmal-codec --disable-mmal-vout --enable-gles2 --enable-chromaprint=no --disable-wayland
-make
+./configure --prefix=/usr --enable-omxil --enable-rpi-omxil --disable-mmal --disable-mmal-vout --enable-gles2 --enable-chromaprint=no --disable-wayland ${VLC_CONFIGURE_ARGS}
+make -j3
