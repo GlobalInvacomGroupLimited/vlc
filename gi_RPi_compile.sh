@@ -1,11 +1,14 @@
 #!/bin/sh
 
-export CFLAGS="-I/opt/vc/include/ -I/opt/vc/include/interface/vcos/pthreads -I/opt/vc/include/interface/vmcs_host/linux -I/opt/vc/include/interface/mmal -I/opt/vc/include/interface/vchiq_arm -I/opt/vc/include/IL -I/opt/vc/include/GLES2 -mfloat-abi=hard -mcpu=cortex-a7 -mfpu=neon-vfpv4"
+export CFLAGS="-I/opt/vc/include/ -I/opt/vc/include/interface/vcos/pthreads -I/opt/vc/include/interface/vmcs_host/linux -I/opt/vc/include/interface/mmal -I/opt/vc/include/interface/vchiq_arm -I/opt/vc/include/IL -I/opt/vc/include/GLES2 -mfloat-abi=hard -mcpu=cortex-a7 -mfpu=neon-vfpv4 -DNDEBUG"
 export GLES2_CFLAGS="-I/opt/vc/include/ -I/opt/vc/include/interface/vcos/pthreads -I/opt/vc/include/interface/vmcs_host/linux -I/opt/vc/include/interface/mmal -I/opt/vc/include/interface/vchiq_arm -I/opt/vc/include/IL -I/opt/vc/include/GLES2"
-export CXXFLAGS="-I/opt/vc/include/ -I/opt/vc/include/interface/vcos/pthreads -I/opt/vc/include/interface/vmcs_host/linux -I/opt/vc/include/interface/mmal -I/opt/vc/include/interface/vchiq_arm -I/opt/vc/include/IL -mfloat-abi=hard -I/opt/vc/include/GLES2 -mcpu=cortex-a7 -mfpu=neon-vfpv4"
+export CXXFLAGS="-I/opt/vc/include/ -I/opt/vc/include/interface/vcos/pthreads -I/opt/vc/include/interface/vmcs_host/linux -I/opt/vc/include/interface/mmal -I/opt/vc/include/interface/vchiq_arm -I/opt/vc/include/IL -mfloat-abi=hard -I/opt/vc/include/GLES2 -mcpu=cortex-a7 -mfpu=neon-vfpv4 -DNDEBUG"
 
 export LDFLAGS="-L/opt/vc/lib"
 export GLES2_LIBS="-L/opt/vc/lib"
+
+EXTRA_CFLAGS="-DNDEBUG "
+
 
 avlc_checkfail()
 {
@@ -95,7 +98,7 @@ VLC_BOOTSTRAP_ARGS="\
     --disable-srt \
     --disable-x265 \
     --disable-medialibrary \
-    --disable-		lua"
+    --disable-lua"
 
 ###########################
 # VLC CONFIGURE ARGUMENTS #
@@ -249,17 +252,19 @@ mkdir -p native
 cd native
 ../bootstrap --disable-chromaprint --enable-dvbpsi ${VLC_BOOTSTRAP_ARGS}
 
+echo "EXTRA_CFLAGS=${EXTRA_CFLAGS}" >> config.mak
+
 # use BUILD_ALL=1 to force download of all required libraries even if installed with distribution
 make -j3 $BUILD_TAG
 
 
 ###############
 # compile VLC #
-###############
+###############		
 
 # Debug build options:
 #--enable-debug --disable-optimizations CFLAGS="-g -Og" CXXFLAGS="-g -Og"
 
 cd $TOP_LEVEL
-./configure --prefix=/usr --enable-omxil --enable-rpi-omxil --disable-mmal --disable-mmal-vout --enable-gles2 --enable-chromaprint=no --disable-wayland ${VLC_CONFIGURE_ARGS}
+./configure --prefix=/usr --enable-omxil --enable-rpi-omxil --disable-mmal --enable-gles2 --enable-chromaprint=no --disable-wayland ${VLC_CONFIGURE_ARGS}
 make -j3
