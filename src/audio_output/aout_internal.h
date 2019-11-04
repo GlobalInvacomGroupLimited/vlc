@@ -76,7 +76,18 @@ typedef struct
 
     int requested_stereo_mode; /**< Requested stereo mode set by the user */
 
+    /* Original input format and profile, won't change for the lifetime of a
+     * stream (between aout_DecNew() and aout_DecDelete()). */
+    int                   input_profile;
     audio_sample_format_t input_format;
+
+    /* Format used to configure the conversion filters. It is based on the
+     * input_format but its fourcc can be different when the module is handling
+     * codec passthrough. Indeed, in case of DTSHD->DTS or EAC3->AC3 fallback,
+     * the filter need to know which codec is handled by the output. */
+    audio_sample_format_t filter_format;
+
+    /* Output format used and modified by the module. */
     audio_sample_format_t mixer_format;
 
     aout_filters_cfg_t filters_cfg;
@@ -117,8 +128,7 @@ audio_output_t *aout_New (vlc_object_t *);
 #define aout_New(a) aout_New(VLC_OBJECT(a))
 void aout_Destroy (audio_output_t *);
 
-int aout_OutputNew(audio_output_t *, audio_sample_format_t *,
-                   aout_filters_cfg_t *filters_cfg);
+int aout_OutputNew(audio_output_t *);
 void aout_OutputDelete( audio_output_t * p_aout );
 
 
@@ -134,7 +144,7 @@ void aout_FormatsPrint(vlc_object_t *, const char *,
 #define AOUT_DEC_CHANGED 1
 #define AOUT_DEC_FAILED VLC_EGENERIC
 
-int aout_DecNew(audio_output_t *, const audio_sample_format_t *,
+int aout_DecNew(audio_output_t *, const audio_sample_format_t *, int profile,
                 struct vlc_clock_t *clock, const audio_replay_gain_t *);
 void aout_DecDelete(audio_output_t *);
 int aout_DecPlay(audio_output_t *aout, block_t *block);

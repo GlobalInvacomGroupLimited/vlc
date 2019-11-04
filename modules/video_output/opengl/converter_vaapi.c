@@ -35,6 +35,15 @@
 #include "converter.h"
 #include "../../hw/vaapi/vlc_vaapi.h"
 
+/* From https://www.khronos.org/registry/OpenGL/extensions/OES/OES_EGL_image.txt
+ * The extension is an OpenGL ES extension but can (and usually is) available on
+ * OpenGL implementations. */
+#ifndef GL_OES_EGL_image
+#define GL_OES_EGL_image 1
+typedef void *GLeglImageOES;
+typedef void (*PFNGLEGLIMAGETARGETTEXTURE2DOESPROC)(GLenum target, GLeglImageOES image);
+#endif
+
 struct priv
 {
     VADisplay vadpy;
@@ -224,10 +233,12 @@ tc_vaegl_get_pool(const opengl_tex_converter_t *tc, unsigned requested_count)
     vlc_object_t *o = VLC_OBJECT(tc->gl);
     struct priv *priv = tc->priv;
 
+    vlc_decoder_device *dec_device = vlc_video_context_HoldDevice(tc->vctx);
     picture_pool_t *pool =
-        vlc_vaapi_PoolNew(VLC_OBJECT(tc->gl), tc->dec_device, priv->vadpy,
+        vlc_vaapi_PoolNew(VLC_OBJECT(tc->gl), dec_device, priv->vadpy,
                           requested_count, &priv->va_surface_ids, &tc->fmt,
                           true);
+    vlc_decoder_device_Release(dec_device);
     if (!pool)
         return NULL;
 
@@ -310,8 +321,8 @@ tc_va_check_interop_blacklist(opengl_tex_converter_t *tc, VADisplay *vadpy)
     };
 
     char vendor_prefix[BL_SIZE_MAX];
-    strncpy(vendor_prefix, vendor, BL_SIZE_MAX);
-    vendor_prefix[BL_SIZE_MAX - 1] = '\0';
+    strncpy(vendor_prefix, vendor, sizeof(vendor_prefix) - 1);
+    vendor_prefix[sizeof(vendor_prefix) - 1] = '\0';
 
     const char *found = bsearch(vendor_prefix, blacklist_prefix,
                                 ARRAY_SIZE(blacklist_prefix),
@@ -326,24 +337,57 @@ tc_va_check_interop_blacklist(opengl_tex_converter_t *tc, VADisplay *vadpy)
 }
 
 static int
+tc_va_check_derive_image(opengl_tex_converter_t *tc,
+                         vlc_decoder_device *dec_device)
+{
+    vlc_object_t *o = VLC_OBJECT(tc->gl);
+    struct priv *priv = tc->priv;
+    VASurfaceID *va_surface_ids;
+
+    picture_pool_t *pool = vlc_vaapi_PoolNew(o, dec_device, priv->vadpy, 1,
+                                             &va_surface_ids, &tc->fmt, true);
+    if (!pool)
+        return VLC_EGENERIC;
+
+    VAImage va_image = { .image_id = VA_INVALID_ID };
+    int ret = vlc_vaapi_DeriveImage(o, priv->vadpy, va_surface_ids[0],
+                                    &va_image);
+
+    picture_pool_Release(pool);
+
+    return ret;
+}
+
+static int
 Open(vlc_object_t *obj)
 {
     opengl_tex_converter_t *tc = (void *) obj;
 
-    if (tc->dec_device == NULL
-     || tc->dec_device->type != VLC_DECODER_DEVICE_VAAPI
+    if (tc->vctx == NULL)
+        return VLC_EGENERIC;
+    vlc_decoder_device *dec_device = vlc_video_context_HoldDevice(tc->vctx);
+    if (dec_device->type != VLC_DECODER_DEVICE_VAAPI
      || !vlc_vaapi_IsChromaOpaque(tc->fmt.i_chroma)
      || tc->gl->ext != VLC_GL_EXT_EGL
      || tc->gl->egl.createImageKHR == NULL
      || tc->gl->egl.destroyImageKHR == NULL)
+    {
+        vlc_decoder_device_Release(dec_device);
         return VLC_EGENERIC;
+    }
 
     if (!vlc_gl_StrHasToken(tc->glexts, "GL_OES_EGL_image"))
+    {
+        vlc_decoder_device_Release(dec_device);
         return VLC_EGENERIC;
+    }
 
     const char *eglexts = tc->gl->egl.queryString(tc->gl, EGL_EXTENSIONS);
     if (eglexts == NULL || !vlc_gl_StrHasToken(eglexts, "EGL_EXT_image_dma_buf_import"))
+    {
+        vlc_decoder_device_Release(dec_device);
         return VLC_EGENERIC;
+    }
 
     struct priv *priv = tc->priv = calloc(1, sizeof(struct priv));
     if (unlikely(tc->priv == NULL))
@@ -374,10 +418,13 @@ Open(vlc_object_t *obj)
     if (priv->glEGLImageTargetTexture2DOES == NULL)
         goto error;
 
-    priv->vadpy = tc->dec_device->opaque;
+    priv->vadpy = dec_device->opaque;
     assert(priv->vadpy != NULL);
 
     if (tc_va_check_interop_blacklist(tc, priv->vadpy))
+        goto error;
+
+    if (tc_va_check_derive_image(tc, dec_device))
         goto error;
 
     tc->fshader = opengl_fragment_shader_init(tc, GL_TEXTURE_2D, vlc_sw_chroma,
@@ -388,8 +435,11 @@ Open(vlc_object_t *obj)
     tc->pf_update  = tc_vaegl_update;
     tc->pf_get_pool = tc_vaegl_get_pool;
 
+    vlc_decoder_device_Release(dec_device);
+
     return VLC_SUCCESS;
 error:
+    vlc_decoder_device_Release(dec_device);
     free(priv);
     return VLC_EGENERIC;
 }

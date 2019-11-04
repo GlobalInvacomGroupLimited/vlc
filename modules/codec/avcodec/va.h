@@ -24,13 +24,16 @@
 #define VLC_AVCODEC_VA_H 1
 
 #include "avcommon_compat.h"
+#include <libavutil/pixdesc.h>
 
 typedef struct vlc_va_t vlc_va_t;
 typedef struct vlc_va_sys_t vlc_va_sys_t;
+typedef struct vlc_decoder_device vlc_decoder_device;
+typedef struct vlc_video_context vlc_video_context;
 
 struct vlc_va_operations {
     int (*get)(vlc_va_t *, picture_t *pic, uint8_t **surface);
-    void (*close)(vlc_va_t *, void **hwctx);
+    void (*close)(vlc_va_t *);
 };
 
 struct vlc_va_t {
@@ -40,8 +43,9 @@ struct vlc_va_t {
     const struct vlc_va_operations *ops;
 };
 
-typedef int (*vlc_va_open)(vlc_va_t *, AVCodecContext *, enum PixelFormat,
-                           const es_format_t *, void *);
+typedef int (*vlc_va_open)(vlc_va_t *, AVCodecContext *, const AVPixFmtDescriptor *,
+                           const es_format_t *, vlc_decoder_device *,
+                           video_format_t *, vlc_video_context **);
 
 #define set_va_callback(activate, priority) \
     { \
@@ -66,9 +70,9 @@ vlc_fourcc_t vlc_va_GetChroma(enum PixelFormat hwfmt, enum PixelFormat swfmt);
  * @param fmt VLC format of the content to decode
  * @return a new VLC object on success, NULL on error.
  */
-vlc_va_t *vlc_va_New(vlc_object_t *obj, AVCodecContext *,
-                     enum PixelFormat, const es_format_t *fmt,
-                     void *p_sys);
+vlc_va_t *vlc_va_New(vlc_object_t *obj, AVCodecContext *, const AVPixFmtDescriptor *,
+                     const es_format_t *fmt, vlc_decoder_device *device,
+                     video_format_t *, vlc_video_context **vtcx_out);
 
 /**
  * Get a hardware video surface for a libavcodec frame.
@@ -97,6 +101,6 @@ static inline int vlc_va_Get(vlc_va_t *va, picture_t *pic, uint8_t **surface)
  * Destroys a libavcodec hardware acceleration back-end.
  * All allocated surfaces shall have been released beforehand.
  */
-void vlc_va_Delete(vlc_va_t *, void **);
+void vlc_va_Delete(vlc_va_t *);
 
 #endif

@@ -153,6 +153,13 @@ vlc_vaapi_EndPicture(vlc_object_t *o, VADisplay dpy, VAContextID ctx);
  * VAAPI helpers *
  *****************/
 
+struct vaapi_pic_context
+{
+    picture_context_t s;
+    VASurfaceID surface;
+    VADisplay va_dpy;
+};
+
 /* Creates a VAConfigID */
 VAConfigID
 vlc_vaapi_CreateConfigChecked(vlc_object_t *o, VADisplay dpy,
@@ -166,11 +173,6 @@ vlc_vaapi_PoolNew(vlc_object_t *o, vlc_decoder_device *dec_device,
                   VADisplay dpy, unsigned count, VASurfaceID **render_targets,
                   const video_format_t *restrict fmt, bool b_force_fourcc);
 
-/* Get render targets from a pic_sys allocated by the vaapi pool (see
- * vlc_vaapi_PoolNew()) */
-unsigned
-vlc_vaapi_PicSysGetRenderTargets(void *sys, VASurfaceID **render_targets);
-
 /* Get and hold the VADisplay instance attached to the picture sys */
 vlc_decoder_device *
 vlc_vaapi_PicSysHoldInstance(void *sys, VADisplay *dpy);
@@ -179,6 +181,10 @@ vlc_vaapi_PicSysHoldInstance(void *sys, VADisplay *dpy);
  * by a vaapi pool (see vlc_vaapi_PoolNew()) */
 void
 vlc_vaapi_PicAttachContext(picture_t *pic);
+
+/* Attachs the VASurface to the picture context */
+void
+vlc_vaapi_PicSetContext(picture_t *pic, struct vaapi_pic_context *);
 
 /* Get the VASurfaceID attached to the pic */
 VASurfaceID
@@ -194,5 +200,21 @@ vlc_vaapi_IsChromaOpaque(int i_vlc_chroma)
     return i_vlc_chroma == VLC_CODEC_VAAPI_420
         || i_vlc_chroma == VLC_CODEC_VAAPI_420_10BPP;
 }
+
+void vlc_chroma_to_vaapi(int i_vlc_chroma, unsigned *va_rt_format, int *va_fourcc);
+
+/* This macro is designed to wrap any VA call, and in case of failure,
+   display the VA error string then goto the 'error' label (which you must
+   define). */
+#define VA_CALL(o, f, args...)                          \
+    do                                                  \
+    {                                                   \
+        VAStatus s = f(args);                           \
+        if (s != VA_STATUS_SUCCESS)                     \
+        {                                               \
+            msg_Err(o, "%s: %s", #f, vaErrorStr(s));    \
+            goto error;                                 \
+        }                                               \
+    } while (0)
 
 #endif /* VLC_VAAPI_H */

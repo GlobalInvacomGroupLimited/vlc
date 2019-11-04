@@ -43,11 +43,11 @@ static int audio_update_format( decoder_t *p_dec )
     struct decoder_owner *p_owner = dec_get_owner( p_dec );
     sout_stream_id_sys_t *id = p_owner->id;
 
-    if( !AOUT_FMT_LINEAR(&p_dec->fmt_out.audio) )
-        return VLC_EGENERIC;
-
     p_dec->fmt_out.audio.i_format = p_dec->fmt_out.i_codec;
     aout_FormatPrepare( &p_dec->fmt_out.audio );
+
+    if( !AOUT_FMT_LINEAR(&p_dec->fmt_out.audio) )
+        return VLC_EGENERIC;
 
     vlc_mutex_lock(&id->fifo.lock);
     es_format_Clean( &id->decoder_out );
@@ -252,7 +252,7 @@ int transcode_audio_process( sout_stream_t *p_stream,
         {
             if( !transcode_encoder_opened( id->encoder ) )
             {
-                transcode_encoder_audio_configure( VLC_OBJECT(p_stream), id->p_enccfg,
+                transcode_encoder_audio_configure( id->p_enccfg,
                                                    &id->decoder_out.audio, id->encoder, true );
                 id->fmt_input_audio = id->decoder_out.audio;
             }
@@ -265,6 +265,7 @@ int transcode_audio_process( sout_stream_t *p_stream,
                     aout_FiltersDelete( p_stream, id->p_af_chain );
                     id->p_af_chain = NULL;
                 }
+                id->fmt_input_audio = id->decoder_out.audio;
             }
 
             if( !id->p_af_chain &&

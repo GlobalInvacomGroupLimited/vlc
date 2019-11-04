@@ -54,8 +54,6 @@ libmacosx_plugin_la_SOURCES = \
 	gui/macosx/library/VLCInputItem.m \
 	gui/macosx/library/VLCLibraryAlbumTableCellView.h \
 	gui/macosx/library/VLCLibraryAlbumTableCellView.m \
-	gui/macosx/library/VLCLibraryAlternativeAudioViewController.h \
-	gui/macosx/library/VLCLibraryAlternativeAudioViewController.m \
 	gui/macosx/library/VLCLibraryAudioDataSource.h \
 	gui/macosx/library/VLCLibraryAudioDataSource.m \
 	gui/macosx/library/VLCLibraryCollectionViewItem.h \
@@ -135,6 +133,8 @@ libmacosx_plugin_la_SOURCES = \
 	gui/macosx/panels/VLCVideoEffectsWindowController.m \
 	gui/macosx/panels/dialogs/VLCCoreDialogProvider.h \
 	gui/macosx/panels/dialogs/VLCCoreDialogProvider.m \
+	gui/macosx/panels/dialogs/VLCCustomCropArWindowController.h \
+	gui/macosx/panels/dialogs/VLCCustomCropArWindowController.m \
 	gui/macosx/panels/dialogs/VLCPopupPanelController.h \
 	gui/macosx/panels/dialogs/VLCPopupPanelController.m \
 	gui/macosx/panels/dialogs/VLCResumeDialogController.h \
@@ -173,6 +173,8 @@ libmacosx_plugin_la_SOURCES = \
 	gui/macosx/preferences/prefs_widgets.m \
 	gui/macosx/views/VLCBottomBarView.h \
 	gui/macosx/views/VLCBottomBarView.m \
+	gui/macosx/views/VLCCustomWindowButton.h \
+	gui/macosx/views/VLCCustomWindowButton.m \
 	gui/macosx/views/VLCDefaultValueSlider.h \
 	gui/macosx/views/VLCDefaultValueSlider.m \
 	gui/macosx/views/VLCDefaultValueSliderCell.h \
@@ -213,6 +215,8 @@ libmacosx_plugin_la_SOURCES = \
 	gui/macosx/views/VLCWrappableTextField.m \
 	gui/macosx/windows/VLCAboutWindowController.h \
 	gui/macosx/windows/VLCAboutWindowController.m \
+	gui/macosx/windows/VLCDetachedAudioWindow.h \
+	gui/macosx/windows/VLCDetachedAudioWindow.m \
 	gui/macosx/windows/VLCErrorWindowController.h \
 	gui/macosx/windows/VLCErrorWindowController.m \
 	gui/macosx/windows/VLCHelpWindowController.h \
@@ -271,6 +275,8 @@ libmacosx_plugin_la_XIB_SOURCES = \
 	gui/macosx/UI/Help.xib \
 	gui/macosx/UI/LogMessageWindow.xib \
 	gui/macosx/UI/MainMenu.xib \
+	gui/macosx/UI/VLCCustomCropARPanel.xib \
+	gui/macosx/UI/VLCDetachedAudioWindow.xib \
 	gui/macosx/UI/VLCLibraryAlbumTableCellView.xib \
 	gui/macosx/UI/VLCLibraryWindow.xib \
 	gui/macosx/UI/VLCLibraryTableCellView.xib \
@@ -435,18 +441,10 @@ libmacosx_plugin_la_RES = \
 	gui/macosx/Resources/Pref-Icons/VLCInterfaceCone.png \
 	gui/macosx/Resources/Pref-Icons/VLCSubtitleCone.png \
 	gui/macosx/Resources/Pref-Icons/VLCVideoCone.png \
-	gui/macosx/Resources/sidebar-icons/sidebar-local.png \
-	gui/macosx/Resources/sidebar-icons/sidebar-local@2x.png \
 	gui/macosx/Resources/sidebar-icons/sidebar-movie.png \
 	gui/macosx/Resources/sidebar-icons/sidebar-movie@2x.png \
 	gui/macosx/Resources/sidebar-icons/sidebar-music.png \
 	gui/macosx/Resources/sidebar-icons/sidebar-music@2x.png \
-	gui/macosx/Resources/sidebar-icons/sidebar-pictures.png \
-	gui/macosx/Resources/sidebar-icons/sidebar-pictures@2x.png \
-	gui/macosx/Resources/sidebar-icons/sidebar-playlist.png \
-	gui/macosx/Resources/sidebar-icons/sidebar-playlist@2x.png \
-	gui/macosx/Resources/sidebar-icons/sidebar-podcast.png \
-	gui/macosx/Resources/sidebar-icons/sidebar-podcast@2x.png \
 	gui/macosx/Resources/Button-Icons/VLCNextTemplate.pdf \
 	gui/macosx/Resources/Button-Icons/VLCPauseTemplate.pdf \
 	gui/macosx/Resources/Button-Icons/VLCPlayTemplate.pdf \
@@ -460,7 +458,19 @@ libmacosx_plugin_la_RES = \
 	gui/macosx/Resources/Button-Icons/VLCVolumeOnTemplate.pdf \
 	gui/macosx/Resources/Button-Icons/VLCVolumeOffTemplate.pdf \
 	gui/macosx/Resources/Button-Icons/VLCClearLogTemplate.pdf \
-	gui/macosx/Resources/Button-Icons/VLCSaveTemplate.pdf
+	gui/macosx/Resources/Button-Icons/VLCSaveTemplate.pdf \
+	gui/macosx/Resources/Button-Icons/window-close-graphite.png \
+	gui/macosx/Resources/Button-Icons/window-close-graphite@2x.png \
+	gui/macosx/Resources/Button-Icons/window-close-on-graphite.png \
+	gui/macosx/Resources/Button-Icons/window-close-on-graphite@2x.png \
+	gui/macosx/Resources/Button-Icons/window-close-on.png \
+	gui/macosx/Resources/Button-Icons/window-close-on@2x.png \
+	gui/macosx/Resources/Button-Icons/window-close-over-graphite.png \
+	gui/macosx/Resources/Button-Icons/window-close-over-graphite@2x.png \
+	gui/macosx/Resources/Button-Icons/window-close-over.png \
+	gui/macosx/Resources/Button-Icons/window-close-over@2x.png \
+	gui/macosx/Resources/Button-Icons/window-close.png \
+	gui/macosx/Resources/Button-Icons/window-close@2x.png
 
 libmacosx_plugin_la_RES += \
 	gui/macosx/Resources/dsa_pub.pem \

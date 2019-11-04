@@ -236,6 +236,13 @@ libwebvtt_plugin_la_SOURCES += codec/webvtt/CSSGrammar.y \
                                codec/webvtt/css_style.c \
                                codec/webvtt/css_style.h \
                                codec/webvtt/css_bridge.h
+css_parser_test_CFLAGS = $(libwebvtt_plugin_la_CFLAGS)
+css_parser_test_SOURCES = codec/webvtt/css_test.c \
+                          codec/webvtt/css_parser.c \
+                          codec/webvtt/CSSGrammar.y \
+                          codec/webvtt/CSSLexer.l
+check_PROGRAMS += css_parser_test
+TESTS += css_parser_test
 endif
 
 libsvcdsub_plugin_la_SOURCES = codec/svcdsub.c demux/mpeg/timestamps.h
@@ -390,7 +397,8 @@ endif
 ### avcodec hardware acceleration ###
 
 libvaapi_plugin_la_SOURCES = \
-	codec/avcodec/vaapi.c hw/vaapi/vlc_vaapi.c hw/vaapi/vlc_vaapi.h
+	codec/avcodec/vaapi.c hw/vaapi/vlc_vaapi.c hw/vaapi/vlc_vaapi.h \
+	codec/avcodec/va_surface.c codec/avcodec/va_surface_internal.h
 libvaapi_plugin_la_CPPFLAGS = $(AM_CPPFLAGS)
 libvaapi_plugin_la_CFLAGS = $(AM_CFLAGS) $(AVCODEC_CFLAGS)
 libvaapi_plugin_la_LIBADD = $(LIBVA_LIBS)
@@ -407,7 +415,7 @@ endif
 
 libdxva2_plugin_la_SOURCES = \
 	codec/avcodec/dxva2.c codec/avcodec/directx_va.c codec/avcodec/directx_va.h \
-	codec/avcodec/va_surface.c codec/avcodec/va_surface.h codec/avcodec/va_surface_internal.h \
+	codec/avcodec/va_surface.c codec/avcodec/va_surface_internal.h \
 	packetizer/h264_nal.c packetizer/h264_nal.h \
 	packetizer/hevc_nal.c packetizer/hevc_nal.h \
 	codec/avcodec/dxva_blacklist.c
@@ -425,7 +433,7 @@ endif
 
 libd3d11va_plugin_la_SOURCES = \
 	codec/avcodec/d3d11va.c codec/avcodec/directx_va.c codec/avcodec/directx_va.h \
-        codec/avcodec/va_surface.c codec/avcodec/va_surface.h codec/avcodec/va_surface_internal.h \
+        codec/avcodec/va_surface.c codec/avcodec/va_surface_internal.h \
 	packetizer/h264_nal.c packetizer/h264_nal.h \
 	packetizer/hevc_nal.c packetizer/hevc_nal.h \
 	codec/avcodec/dxva_blacklist.c

@@ -49,22 +49,22 @@ typedef struct input_list_t {
     unsigned count;
 } input_list_t;
 
+typedef struct {
+    const char   *name;
+    const GUID   *guid;
+    int           bit_depth;
+    struct {
+        uint8_t log2_chroma_w;
+        uint8_t log2_chroma_h;
+    };
+    enum AVCodecID codec;
+    const int    *p_profiles; // NULL or ends with 0
+    int           workaround;
+} directx_va_mode_t;
+
 #define MAX_SURFACE_COUNT (64)
 typedef struct
 {
-    va_pool_t             va_pool;
-    bool                  can_extern_pool;
-
-    /* for pre allocation */
-    D3D_DecoderSurface     *hw_surface[MAX_SURFACE_COUNT];
-
-    /* Video service */
-    GUID                   input;
-    D3D_DecoderDevice      *d3ddec;
-
-    /* Video decoder */
-    D3D_DecoderType        *decoder;
-
     /**
      * Read the list of possible input GUIDs
      */
@@ -73,14 +73,13 @@ typedef struct
      * Find a suitable decoder configuration for the input and set the
      * internal state to use that output
      */
-    int (*pf_setup_output)(vlc_va_t *, const GUID *input, const video_format_t *fmt);
+    int (*pf_setup_output)(vlc_va_t *, const directx_va_mode_t *, const video_format_t *fmt);
 
 } directx_sys_t;
 
-int directx_va_Open(vlc_va_t *, directx_sys_t *);
-void directx_va_Close(vlc_va_t *, directx_sys_t *);
-int directx_va_Setup(vlc_va_t *, directx_sys_t *, const AVCodecContext *avctx, const es_format_t *, int flag_xbox);
-char *directx_va_GetDecoderName(const GUID *guid);
+const directx_va_mode_t * directx_va_Setup(vlc_va_t *, const directx_sys_t *, const AVCodecContext *, const AVPixFmtDescriptor *,
+                                           const es_format_t *, int flag_xbox,
+                                           video_format_t *fmt_out, unsigned *surface_count);
 bool directx_va_canUseDecoder(vlc_va_t *, UINT VendorId, UINT DeviceId, const GUID *pCodec, UINT driverBuild);
 
 #endif /* AVCODEC_DIRECTX_VA_H */

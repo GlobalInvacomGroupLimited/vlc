@@ -32,15 +32,13 @@
 #include <vlc_plugin.h>
 #include <vlc_filter.h>
 #include <vlc_picture.h>
+#include <vlc_codec.h>
 
 #define COBJMACROS
 #include <initguid.h>
 #include <d3d9.h>
 #include <dxva2api.h>
 #include "../../video_chroma/d3d9_fmt.h"
-
-typedef picture_sys_d3d9_t VA_PICSYS;
-#include "../../codec/avcodec/va_surface.h"
 
 #include "d3d9_filters.h"
 
@@ -92,7 +90,7 @@ static void FillSample( DXVA2_VideoSample *p_sample,
                         picture_t *p_pic,
                         const RECT *p_area )
 {
-    picture_sys_d3d9_t *p_sys_src = ActivePictureSys(p_pic);
+    picture_sys_d3d9_t *p_sys_src = ActiveD3D9PictureSys(p_pic);
 
     p_sample->SrcSurface = p_sys_src->surface;
     p_sample->SampleFormat.SampleFormat = DXVA2_SampleProgressiveFrame;
@@ -107,7 +105,7 @@ static picture_t *Filter(filter_t *p_filter, picture_t *p_pic)
 {
     filter_sys_t *p_sys = p_filter->p_sys;
 
-    picture_sys_d3d9_t *p_src_sys = ActivePictureSys(p_pic);
+    picture_sys_d3d9_t *p_src_sys = ActiveD3D9PictureSys(p_pic);
 
     picture_t *p_outpic = filter_NewPicture( p_filter );
     if( !p_outpic )
@@ -496,4 +494,9 @@ vlc_module_begin()
     add_submodule()
     set_callbacks( D3D9OpenCPUConverter, D3D9CloseCPUConverter )
     set_capability( "video converter", 10 )
+
+    add_submodule()
+    set_description(N_("Direct3D9"))
+    set_callback_dec_device( D3D9OpenDecoderDevice, 10 )
+    add_shortcut ("d3d9-device")
 vlc_module_end()

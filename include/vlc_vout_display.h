@@ -105,8 +105,6 @@ typedef struct vout_display_cfg {
  *
  */
 typedef struct {
-    bool is_slow;                           /* The picture memory has slow read/write */
-    bool has_pictures_invalid;              /* Can handle VOUT_DISPLAY_RESET_PICTURES */
     bool can_scale_spu;                     /* Handles subpictures with a non default zoom factor */
     const vlc_fourcc_t *subpicture_chromas; /* List of supported chromas for subpicture rendering. */
 } vout_display_info_t;
@@ -123,7 +121,7 @@ enum {
      * \ref VOUT_DISPLAY_CHANGE_SOURCE_CROP
      * control query returns an error.
      */
-    VOUT_DISPLAY_RESET_PICTURES, /* const vout_display_cfg_t *, es_format_t * */
+    VOUT_DISPLAY_RESET_PICTURES, /* const vout_display_cfg_t *, video_format_t * */
 
 #if defined(__OS2__)
     /* Ask the module to acknowledge/refuse the fullscreen state change after
@@ -208,22 +206,6 @@ typedef int (*vout_display_open_cb)(vout_display_t *vd,
                                     video_format_t *fmtp,
                                     vlc_video_context *context);
 
-/**
- * "vout display" close callback
- *
- * @param vd vout display context
- */
-typedef void (*vout_display_close_cb)(vout_display_t *vd);
-
-#define set_callbacks_display(activate, deactivate, priority) \
-    { \
-        vout_display_open_cb open__ = activate; \
-        vout_display_close_cb close__ = deactivate; \
-        (void) open__; (void) close__; \
-        set_callbacks(activate, deactivate) \
-    } \
-    set_capability( "vout display", priority )
-
 #define set_callback_display(activate, priority) \
     { \
         vout_display_open_cb open__ = activate; \
@@ -235,9 +217,6 @@ typedef void (*vout_display_close_cb)(vout_display_t *vd);
 
 struct vout_display_t {
     struct vlc_object_t obj;
-
-    /* Module */
-    module_t *module;
 
     /* Initial and current configuration.
      * You cannot modify it directly, you must use the appropriate events.
@@ -305,6 +284,11 @@ struct vout_display_t {
     /* Control on the module (mandatory) */
     int        (*control)(vout_display_t *, int, va_list);
 
+    /**
+     * Destroys the display.
+     */
+    void (*close)(vout_display_t *);
+
     /* Private place holder for the vout_display_t module (optional)
      *
      * A module is free to use it as it wishes.
@@ -322,7 +306,8 @@ struct vout_display_t {
  * Creates video output display.
  */
 VLC_API
-vout_display_t *vout_display_New(vlc_object_t *, const video_format_t *,
+vout_display_t *vout_display_New(vlc_object_t *,
+    const video_format_t *, vlc_video_context *,
     const vout_display_cfg_t *, const char *module,
     const vout_display_owner_t *);
 

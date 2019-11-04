@@ -282,7 +282,7 @@ static void send_parsed_changed( libvlc_media_t *p_md,
     }
 
     p_md->parsed_status = new_status;
-    if( p_md->parsed_status == libvlc_media_parsed_status_skipped )
+    if( p_md->parsed_status != libvlc_media_parsed_status_done )
         p_md->has_asked_preparse = false;
 
     vlc_mutex_unlock( &p_md->parsed_lock );
@@ -730,10 +730,6 @@ bool libvlc_media_get_stats(libvlc_media_t *p_md,
     p_stats->i_played_abuffers = p_itm_stats->i_played_abuffers;
     p_stats->i_lost_abuffers = p_itm_stats->i_lost_abuffers;
 
-    p_stats->i_sent_packets = 0;
-    p_stats->i_sent_bytes = 0;
-    p_stats->f_send_bitrate = 0.;
-
     vlc_mutex_unlock( &item->lock );
     return true;
 }
@@ -783,7 +779,10 @@ static int media_parse(libvlc_media_t *media, bool b_async,
     needed = !media->has_asked_preparse;
     media->has_asked_preparse = true;
     if (needed)
+    {
         media->is_parsed = false;
+        media->parsed_status = 0;
+    }
     vlc_mutex_unlock(&media->parsed_lock);
 
     if (needed)
@@ -793,22 +792,18 @@ static int media_parse(libvlc_media_t *media, bool b_async,
         input_item_meta_request_option_t parse_scope = META_REQUEST_OPTION_SCOPE_LOCAL;
         int ret;
 
-        /* Ignore libvlc_media_fetch_local flag since local art will be fetched
-         * by libvlc_MetadataRequest */
-        if (parse_flag & libvlc_media_fetch_network)
-        {
-            ret = libvlc_ArtRequest(libvlc, item,
-                                    META_REQUEST_OPTION_SCOPE_NETWORK,
-                                    NULL, NULL);
-            if (ret != VLC_SUCCESS)
-                return ret;
-        }
-
         if (parse_flag & libvlc_media_parse_network)
             parse_scope |= META_REQUEST_OPTION_SCOPE_NETWORK;
+        if (parse_flag & libvlc_media_fetch_local)
+            parse_scope |= META_REQUEST_OPTION_FETCH_LOCAL;
+        if (parse_flag & libvlc_media_fetch_network)
+            parse_scope |= META_REQUEST_OPTION_FETCH_NETWORK;
         if (parse_flag & libvlc_media_do_interact)
             parse_scope |= META_REQUEST_OPTION_DO_INTERACT;
-        ret = libvlc_MetadataRequest(libvlc, item, parse_scope, &input_preparser_callbacks, media, timeout, media);
+
+        ret = libvlc_MetadataRequest(libvlc, item, parse_scope,
+                                     &input_preparser_callbacks, media,
+                                     timeout, media);
         if (ret != VLC_SUCCESS)
             return ret;
     }
@@ -1116,8 +1111,6 @@ static void media_on_thumbnail_ready( void* data, picture_t* thumbnail )
     libvlc_event_send( &p_media->event_manager, &event );
     if ( pic != NULL )
         libvlc_picture_release( pic );
-    libvlc_media_release( p_media );
-    free( req );
 }
 
 libvlc_media_thumbnail_request_t*
@@ -1193,11 +1186,15 @@ libvlc_media_thumbnail_request_by_pos( libvlc_media_t *md, float pos,
     return req;
 }
 
-void libvlc_media_thumbnail_cancel( libvlc_media_thumbnail_request_t *req )
+void libvlc_media_thumbnail_request_cancel( libvlc_media_thumbnail_request_t *req )
 {
     libvlc_priv_t *p_priv = libvlc_priv(req->md->p_libvlc_instance->p_libvlc_int);
     assert( p_priv->p_thumbnailer != NULL );
     vlc_thumbnailer_Cancel( p_priv->p_thumbnailer, req->req );
+}
+
+void libvlc_media_thumbnail_request_destroy( libvlc_media_thumbnail_request_t *req )
+{
     libvlc_media_release( req->md );
     free( req );
 }

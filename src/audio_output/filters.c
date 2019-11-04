@@ -390,12 +390,12 @@ vout_thread_t *aout_filter_GetVout(filter_t *filter, const video_format_t *fmt)
 
     video_format_t adj_fmt = *fmt;
     vout_configuration_t cfg = {
-        .vout = vout, .clock = filter->owner.sys, .fmt = &adj_fmt, .dpb_size = 1,
+        .vout = vout, .clock = filter->owner.sys, .fmt = &adj_fmt,
     };
 
     video_format_AdjustColorSpace(&adj_fmt);
 
-    if (vout_Request(&cfg, NULL)) {
+    if (vout_Request(&cfg, NULL, NULL)) {
         vout_Close(vout);
         vout = NULL;
     }
@@ -501,7 +501,7 @@ aout_filters_t *aout_FiltersNewWithClock(vlc_object_t *obj, const vlc_clock_t *c
     filters->count = 0;
     if (clock)
     {
-        filters->clock = vlc_clock_CreateSlave(clock);
+        filters->clock = vlc_clock_CreateSlave(clock, AUDIO_ES);
         if (!filters->clock)
             goto error;
     }

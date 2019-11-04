@@ -22,8 +22,7 @@ import "qrc:///style/"
 
 ToolButton {
     id: control
-    property color color: control.enabled ?
-                              VLCStyle.colors.buttonText : VLCStyle.colors.lightText
+    property bool paintOnly: false
 
     property int size: VLCStyle.icon_normal
 
@@ -31,16 +30,15 @@ ToolButton {
 
     padding: 0
 
+    property color color: VLCStyle.colors.buttonText
+    property color colorDisabled: VLCStyle.colors.lightText
     property color colorOverlay: "transparent"
     property string textOverlay: ""
+    property bool borderEnabled: false
+
+    enabled: !paintOnly
 
     contentItem: Item {
-
-        Rectangle{
-            anchors.fill: parent
-            visible: control.checked
-            color: VLCStyle.colors.bannerHover
-        }
 
         Rectangle {
             anchors.fill: parent
@@ -51,13 +49,13 @@ ToolButton {
         Label {
             id: text
             text: control.text
-            color: control.color
+            color: control.enabled ? control.color : control.colorDisabled
 
             anchors.centerIn: parent
 
-            renderType: Text.NativeRendering
             font.pixelSize: control.size
             font.family: VLCIcons.fontFamily
+            font.underline: control.font.underline
 
             verticalAlignment: Text.AlignVCenter
             horizontalAlignment: Text.AlignHCenter
@@ -74,6 +72,20 @@ ToolButton {
                 verticalAlignment: Text.AlignVCenter
                 horizontalAlignment: Text.AlignHCenter
 
+            }
+
+            Label {
+                text: VLCIcons.active_indicator
+                color: control.enabled ? control.color : control.colorDisabled
+                visible: !control.paintOnly && control.checked
+
+                anchors.centerIn: parent
+
+                font.pixelSize: control.size
+                font.family: VLCIcons.fontFamily
+
+                verticalAlignment: Text.AlignVCenter
+                horizontalAlignment: Text.AlignHCenter
             }
 
         }

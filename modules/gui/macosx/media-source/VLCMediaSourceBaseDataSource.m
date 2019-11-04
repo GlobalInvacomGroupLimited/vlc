@@ -97,6 +97,13 @@ NSString *VLCMediaSourceTableViewCellIdentifier = @"VLCMediaSourceTableViewCellI
     _gridViewMode = YES;
 }
 
+- (void)reloadViews
+{
+    self.gridVsListSegmentedControl.action = @selector(switchGripOrListMode:);
+    self.gridVsListSegmentedControl.target = self;
+    self.gridVsListSegmentedControl.selectedSegment = _gridViewMode ? 0 : 1;
+}
+
 - (void)loadMediaSources
 {
     self.pathControl.URL = nil;
@@ -373,7 +380,11 @@ NSString *VLCMediaSourceTableViewCellIdentifier = @"VLCMediaSourceTableViewCellI
     if (_gridViewMode) {
         if (self.collectionView.dataSource == self) {
             NSInteger index = [_mediaSources indexOfObject:aNotification.object];
-            [self.collectionView reloadSections:[NSIndexSet indexSetWithIndex:index]];
+            if (self.collectionView.numberOfSections >= index) {
+                [self.collectionView reloadSections:[NSIndexSet indexSetWithIndex:index]];
+            } else {
+                [self.collectionView reloadData];
+            }
         } else {
             [self.collectionView reloadData];
         }

@@ -95,7 +95,7 @@ struct es_out_id_t
 {
     vlc_es_id_t id;
 
-    /* weak reference, used by input_decoder_callbacks */
+    /* weak reference, used by input_decoder_callbacks and vlc_clock_cbs */
     es_out_t *out;
 
     /* ES ID */
@@ -121,6 +121,9 @@ struct es_out_id_t
     decoder_t   *p_dec;
     decoder_t   *p_dec_record;
     vlc_clock_t *p_clock;
+
+    /* Used by vlc_clock_cbs, need to be const during the lifetime of the clock */
+    bool master;
 
     vlc_tick_t delay;
 
@@ -267,7 +270,7 @@ static inline int EsOutGetClosedCaptionsChannel( const es_format_t *p_fmt )
         vlc_list_foreach( pos, (!fetes_i ? &p_sys->es : &p_sys->es_slaves), node )
 
 static void
-decoder_on_vout_added(decoder_t *decoder, vout_thread_t *vout,
+decoder_on_vout_started(decoder_t *decoder, vout_thread_t *vout,
                       enum vlc_vout_order order, void *userdata)
 {
     (void) decoder;
@@ -280,7 +283,7 @@ decoder_on_vout_added(decoder_t *decoder, vout_thread_t *vout,
         return;
 
     struct vlc_input_event_vout event = {
-        .action = VLC_INPUT_EVENT_VOUT_ADDED,
+        .action = VLC_INPUT_EVENT_VOUT_STARTED,
         .vout = vout,
         .order = order,
         .id = &id->id,
@@ -290,7 +293,7 @@ decoder_on_vout_added(decoder_t *decoder, vout_thread_t *vout,
 }
 
 static void
-decoder_on_vout_deleted(decoder_t *decoder, vout_thread_t *vout, void *userdata)
+decoder_on_vout_stopped(decoder_t *decoder, vout_thread_t *vout, void *userdata)
 {
     (void) decoder;
 
@@ -302,7 +305,7 @@ decoder_on_vout_deleted(decoder_t *decoder, vout_thread_t *vout, void *userdata)
         return;
 
     struct vlc_input_event_vout event = {
-        .action = VLC_INPUT_EVENT_VOUT_DELETED,
+        .action = VLC_INPUT_EVENT_VOUT_STOPPED,
         .vout = vout,
         .order = VLC_VOUT_ORDER_NONE,
         .id = &id->id,
@@ -399,8 +402,8 @@ decoder_get_attachments(decoder_t *decoder,
 }
 
 static const struct input_decoder_callbacks decoder_cbs = {
-    .on_vout_added = decoder_on_vout_added,
-    .on_vout_deleted = decoder_on_vout_deleted,
+    .on_vout_started = decoder_on_vout_started,
+    .on_vout_stopped = decoder_on_vout_stopped,
     .on_thumbnail_ready = decoder_on_thumbnail_ready,
     .on_new_video_stats = decoder_on_new_video_stats,
     .on_new_audio_stats = decoder_on_new_audio_stats,
@@ -1946,6 +1949,7 @@ static es_out_id_t *EsOutAddSlaveLocked( es_out_t *out, const es_format_t *fmt,
     es->p_dec = NULL;
     es->p_dec_record = NULL;
     es->p_clock = NULL;
+    es->master = false;
     es->cc.type = 0;
     es->cc.i_bitmap = 0;
     es->p_master = p_master;
@@ -1999,21 +2003,50 @@ static bool EsIsSelected( es_out_id_t *es )
         return es->p_dec != NULL;
     }
 }
+
+static void ClockUpdate(vlc_tick_t system_ts, vlc_tick_t ts, double rate,
+                        unsigned frame_rate, unsigned frame_rate_base,
+                        void *data)
+{
+    es_out_id_t *es = data;
+    es_out_sys_t *p_sys = container_of(es->out, es_out_sys_t, out);
+
+    input_SendEventOutputClock(p_sys->p_input, &es->id, es->master, system_ts,
+                               ts, rate, frame_rate, frame_rate_base);
+}
+
 static void EsOutCreateDecoder( es_out_t *out, es_out_id_t *p_es )
 {
     es_out_sys_t *p_sys = container_of(out, es_out_sys_t, out);
     input_thread_t *p_input = p_sys->p_input;
     decoder_t *dec;
 
+    static const struct vlc_clock_cbs clock_cbs = {
+        .on_update = ClockUpdate
+    };
+
     if( p_es->fmt.i_cat != UNKNOWN_ES
      && p_es->fmt.i_cat == p_sys->i_master_source_cat
      && p_es->p_pgrm->p_master_clock == NULL )
+    {
+        p_es->master = true;
         p_es->p_pgrm->p_master_clock = p_es->p_clock =
-            vlc_clock_main_CreateMaster( p_es->p_pgrm->p_main_clock );
+            vlc_clock_main_CreateMaster( p_es->p_pgrm->p_main_clock,
+                                         &clock_cbs, p_es );
+    }
     else
-        p_es->p_clock = vlc_clock_main_CreateSlave( p_es->p_pgrm->p_main_clock );
+    {
+        p_es->master = false;
+        p_es->p_clock = vlc_clock_main_CreateSlave( p_es->p_pgrm->p_main_clock,
+                                                    p_es->fmt.i_cat,
+                                                    &clock_cbs, p_es );
+    }
+
     if( !p_es->p_clock )
+    {
+        p_es->master = false;
         return;
+    }
 
     input_thread_private_t *priv = input_priv(p_input);
     dec = input_DecoderNew( VLC_OBJECT(p_input), &p_es->fmt, p_es->p_clock,
@@ -2998,11 +3031,12 @@ static int EsOutVaControlLocked( es_out_t *out, int i_query, va_list args )
         }
 
         /* TODO do not use vlc_tick_now() but proper stream acquisition date */
-        bool b_late;
-        input_clock_Update( p_pgrm->p_input_clock, VLC_OBJECT(p_sys->p_input),
-                            &b_late,
+        const bool b_low_delay = input_priv(p_sys->p_input)->b_low_delay;
+        bool b_extra_buffering_allowed = !b_low_delay && EsOutIsExtraBufferingAllowed( out );
+        vlc_tick_t i_late = input_clock_Update(
+                            p_pgrm->p_input_clock, VLC_OBJECT(p_sys->p_input),
                             input_priv(p_sys->p_input)->b_can_pace_control || p_sys->b_buffering,
-                            EsOutIsExtraBufferingAllowed( out ),
+                            b_extra_buffering_allowed,
                             i_pcr, vlc_tick_now() );
 
         if( !p_sys->p_pgrm )
@@ -3015,43 +3049,62 @@ static int EsOutVaControlLocked( es_out_t *out, int i_query, va_list args )
         }
         else if( p_pgrm == p_sys->p_pgrm )
         {
-            if( b_late && ( !input_priv(p_sys->p_input)->p_sout ||
+            /* Last pcr/clock update was late. We need to compensate by offsetting
+               from the clock the rendering dates */
+            if( i_late > 0 && ( !input_priv(p_sys->p_input)->p_sout ||
                             !input_priv(p_sys->p_input)->b_out_pace_control ) )
             {
-                vlc_tick_t i_pts_delay = input_clock_GetJitter( p_pgrm->p_input_clock );
+                /* input_clock_GetJitter returns compound delay:
+                 * - initial pts delay (buffering/caching)
+                 * - jitter compensation
+                 * - track offset pts delay
+                 * updated on input_clock_Update
+                 * Late/jitter amount is updated from median of late values */
+                vlc_tick_t i_clock_total_delay = input_clock_GetJitter( p_pgrm->p_input_clock );
+
+                /* Current jitter */
+                vlc_tick_t i_new_jitter = i_clock_total_delay
+                                        - p_sys->i_tracks_pts_delay
+                                        - p_sys->i_pts_delay;
+
+                /* If the clock update is late, we have 2 possibilities:
+                 *  - offset rendering a bit more by increasing the total pts-delay
+                 *  - ignore, set clock to a new reference ahead of previous one
+                 *    and flush buffers (because all previous pts will now be late) */
 
                 /* Avoid dangerously high value */
                 const vlc_tick_t i_jitter_max =
                         VLC_TICK_FROM_MS(var_InheritInteger( p_sys->p_input, "clock-jitter" ));
-                if( i_pts_delay > __MIN( p_sys->i_pts_delay + i_jitter_max, INPUT_PTS_DELAY_MAX ) )
+                /* If the jitter increase is over our max or the total hits the maximum */
+                if( i_new_jitter > i_jitter_max ||
+                    i_clock_total_delay > INPUT_PTS_DELAY_MAX ||
+                    /* jitter is always 0 due to median calculation first output
+                       and low delay can't allow non reversible jitter increase
+                       in branch below */
+                    (b_low_delay && i_late > i_jitter_max) )
                 {
-                    es_out_pgrm_t *pgrm;
-
                     msg_Err( p_sys->p_input,
-                             "ES_OUT_SET_(GROUP_)PCR  is called too late (jitter of %d ms ignored)",
-                             (int)MS_FROM_VLC_TICK(i_pts_delay - p_sys->i_pts_delay) );
-                    i_pts_delay = p_sys->i_pts_delay + p_sys->i_pts_jitter
-                                + p_sys->i_tracks_pts_delay;
+                             "ES_OUT_SET_(GROUP_)PCR  is called %d ms late (jitter of %d ms ignored)",
+                             (int)MS_FROM_VLC_TICK(i_late),
+                             (int)MS_FROM_VLC_TICK(i_new_jitter) );
 
-                    /* reset clock */
-                    vlc_list_foreach(pgrm, &p_sys->programs, node)
-                    {
-                        input_clock_Reset(pgrm->p_input_clock);
-                        vlc_clock_main_Reset(p_pgrm->p_main_clock);
-                    }
+                    /* don't change the current jitter */
+                    i_new_jitter = p_sys->i_pts_jitter;
                 }
                 else
                 {
                     msg_Err( p_sys->p_input,
-                             "ES_OUT_SET_(GROUP_)PCR  is called too late (pts_delay increased to %d ms)",
-                             (int)MS_FROM_VLC_TICK(i_pts_delay) );
-
-                    /* Force a rebufferization when we are too late */
-                    EsOutControlLocked( out, ES_OUT_RESET_PCR );
+                             "ES_OUT_SET_(GROUP_)PCR  is called %d ms late (pts_delay increased to %d ms)",
+                             (int)MS_FROM_VLC_TICK(i_late),
+                             (int)MS_FROM_VLC_TICK(i_clock_total_delay) );
                 }
 
-                EsOutControlLocked( out, ES_OUT_SET_JITTER, p_sys->i_pts_delay,
-                                    i_pts_delay - p_sys->i_pts_delay,
+                /* Force a rebufferization when we are too late */
+                EsOutControlLocked( out, ES_OUT_RESET_PCR );
+
+                EsOutControlLocked( out, ES_OUT_SET_JITTER,
+                                    p_sys->i_pts_delay,
+                                    i_new_jitter,
                                     p_sys->i_cr_average );
             }
         }
@@ -3277,9 +3330,8 @@ static int EsOutVaControlLocked( es_out_t *out, int i_query, va_list args )
     {
         double f_position = va_arg( args, double );
         vlc_tick_t i_time = va_arg( args, vlc_tick_t );
+        vlc_tick_t i_normal_time = va_arg( args, vlc_tick_t );
         vlc_tick_t i_length = va_arg( args, vlc_tick_t );
-
-        input_SendEventLength( p_sys->p_input, i_length );
 
         if( !p_sys->b_buffering )
         {
@@ -3292,17 +3344,26 @@ static int EsOutVaControlLocked( es_out_t *out, int i_query, va_list args )
             else
                 i_delay = 0;
 
-            i_time -= i_delay;
-            if( i_time < 0 )
-                i_time = 0;
+            if( i_time != VLC_TICK_INVALID )
+            {
+                i_time -= i_delay;
+                if( i_time < VLC_TICK_0 )
+                    i_time = VLC_TICK_0;
+            }
 
-            if( i_length > 0 )
+            if( i_length != VLC_TICK_INVALID )
                 f_position -= (double)i_delay / i_length;
             if( f_position < 0 )
                 f_position = 0;
 
-            input_SendEventPosition( p_sys->p_input, f_position, i_time );
+            assert( i_normal_time >= VLC_TICK_0 );
+
+            input_SendEventTimes( p_sys->p_input, f_position, i_time,
+                                  i_normal_time, i_length );
         }
+        else
+            input_SendEventTimes( p_sys->p_input, 0.0, VLC_TICK_INVALID,
+                                  i_normal_time, i_length );
         return VLC_SUCCESS;
     }
     case ES_OUT_SET_JITTER:
@@ -3454,6 +3515,26 @@ static int EsOutVaControlLocked( es_out_t *out, int i_query, va_list args )
                 input_SendEventVbiTransparency( p_sys->p_input, opaque );
         }
         return ret;
+    }
+    case ES_OUT_SET_AUTOSELECT:
+    {
+        int i_cat = va_arg( args, int );
+        bool b_enabled = va_arg( args, int );
+        switch ( i_cat )
+        {
+            case VIDEO_ES:
+                p_sys->video.b_autoselect = b_enabled;
+                break;
+            case AUDIO_ES:
+                p_sys->audio.b_autoselect = b_enabled;
+                break;
+            case SPU_ES:
+                p_sys->sub.b_autoselect = b_enabled;
+                break;
+            default:
+                return VLC_EGENERIC;
+        }
+        return VLC_SUCCESS;
     }
     default:
         msg_Err( p_sys->p_input, "unknown query 0x%x in %s", i_query,

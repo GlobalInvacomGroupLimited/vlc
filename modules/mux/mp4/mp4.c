@@ -135,9 +135,9 @@ typedef struct
     vlc_tick_t   i_length_neg;
 
     /* applies to current segment only */
-    int64_t      i_first_dts;
-    int64_t      i_last_dts;
-    int64_t      i_last_pts;
+    vlc_tick_t   i_first_dts;
+    vlc_tick_t   i_last_dts;
+    vlc_tick_t   i_last_pts;
 
     /*** mp4frag ***/
     bool         b_hasiframes;
@@ -443,7 +443,7 @@ static int Control(sout_mux_t *p_mux, int i_query, va_list args)
     {
     case MUX_CAN_ADD_STREAM_WHILE_MUXING:
         pb_bool = va_arg(args, bool *);
-        *pb_bool = false;
+        *pb_bool = (p_mux->pf_mux == Mux);
         return VLC_SUCCESS;
 
     case MUX_GET_ADD_STREAM_WAIT:

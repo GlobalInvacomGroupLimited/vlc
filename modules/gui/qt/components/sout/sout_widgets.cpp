@@ -25,6 +25,7 @@
 
 #include "components/sout/sout_widgets.hpp"
 #include "dialogs/sout.hpp"
+#include "util/soutchain.hpp"
 #include "util/qt_dirs.hpp"
 #include <vlc_intf_strings.h>
 
@@ -144,7 +145,7 @@ QString FileDestBox::getMRL( const QString& mux )
 {
     if( fileEdit->text().isEmpty() ) return "";
 
-    SoutMrl m;
+    SoutChain m;
     m.begin( "file" );
     QString outputfile = fileEdit->text();
     if( !mux.isEmpty() )
@@ -163,7 +164,7 @@ QString FileDestBox::getMRL( const QString& mux )
     m.option( "no-overwrite" );
     m.end();
 
-    return m.getMrl();
+    return m.to_string();
 }
 
 void FileDestBox::fileBrowse()
@@ -214,7 +215,7 @@ QString HTTPDestBox::getMRL( const QString& mux )
     port.setNum( HTTPPort->value() );
     QString dst = ":" + port + path;
 
-    SoutMrl m;
+    SoutChain m;
     m.begin( "http" );
     /* Path-extension is primary muxer to use if possible,
        otherwise check for mux-choise and see that it isn't mp4
@@ -229,7 +230,7 @@ QString HTTPDestBox::getMRL( const QString& mux )
     m.option( "dst", dst );
     m.end();
 
-    return m.getMrl();
+    return m.to_string();
 }
 
 MMSHDestBox::MMSHDestBox( QWidget *_parent ) : VirtualDestBox( _parent )
@@ -262,14 +263,14 @@ QString MMSHDestBox::getMRL( const QString& )
 {
     if( MMSHEdit->text().isEmpty() ) return "";
 
-    SoutMrl m;
+    SoutChain m;
     m.begin( "std" );
     m.option(  "access", "mmsh" );
     m.option( "mux", "asfh" );
     m.option( "dst", MMSHEdit->text(), MMSHPort->value() );
     m.end();
 
-    return m.getMrl();
+    return m.to_string();
 }
 
 
@@ -310,12 +311,12 @@ QString RTSPDestBox::getMRL( const QString& )
     port.setNum( RTSPPort->value() );
     QString sdp = "rtsp://:" + port + path;
 
-    SoutMrl m;
+    SoutChain m;
     m.begin( "rtp" );
     m.option( "sdp", sdp );
     m.end();
 
-    return m.getMrl();
+    return m.to_string();
 }
 
 
@@ -348,7 +349,7 @@ QString UDPDestBox::getMRL( const QString& mux )
 {
     if( UDPEdit->text().isEmpty() ) return "";
 
-    SoutMrl m;
+    SoutChain m;
     m.begin( "udp" );
     /* udp output, ts-mux is really only reasonable one to use*/
     if( !mux.isEmpty() && !mux.compare("ts" ) )
@@ -356,7 +357,7 @@ QString UDPDestBox::getMRL( const QString& mux )
     m.option( "dst", UDPEdit->text(), UDPPort->value() );
     m.end();
 
-    return m.getMrl();
+    return m.to_string();
 }
 
 SRTDestBox::SRTDestBox(QWidget *_parent, const char *_mux) :
@@ -400,7 +401,7 @@ QString SRTDestBox::getMRL(const QString&)
     if (addr.isEmpty())
         return qfu( "" );
     QString destination = addr + ":" + QString::number( SRTPort->value() );
-    SoutMrl m;
+    SoutChain m;
     m.begin( "srt" );
     m.option( "dst", destination );
     /* mp4-mux ain't usable in rtp-output either */
@@ -412,7 +413,7 @@ QString SRTDestBox::getMRL(const QString&)
     }
     m.end();
 
-    return m.getMrl();
+    return m.to_string();
 }
 
 RISTDestBox::RISTDestBox( QWidget *_parent, const char *_mux )
@@ -452,7 +453,7 @@ QString RISTDestBox::getMRL( const QString& )
 
     if( addr.isEmpty() ) return qfu("");
     QString destination = addr + ":" + QString::number(RISTPort->value());
-    SoutMrl m;
+    SoutChain m;
     m.begin( "std" );
     if( !name.isEmpty() )
     {
@@ -466,7 +467,7 @@ QString RISTDestBox::getMRL( const QString& )
     m.option( "dst", destination );
     m.end();
 
-    return m.getMrl();
+    return m.to_string();
 }
 
 
@@ -507,7 +508,7 @@ QString RTPDestBox::getMRL( const QString& )
 
     if( addr.isEmpty() ) return qfu("");
 
-    SoutMrl m;
+    SoutChain m;
     m.begin( "rtp" );
     m.option( "dst", RTPEdit->text() );
     m.option( "port", RTPPort->value() );
@@ -521,7 +522,7 @@ QString RTPDestBox::getMRL( const QString& )
     }
     m.end();
 
-    return m.getMrl();
+    return m.to_string();
 }
 
 
@@ -569,7 +570,7 @@ QString ICEDestBox::getMRL( const QString& )
 {
     if( ICEEdit->text().isEmpty() ) return "";
 
-    SoutMrl m;
+    SoutChain m;
     m.begin( "std" );
     m.option( "access", "shout" );
     m.option( "mux", "ogg" );
@@ -581,6 +582,6 @@ QString ICEDestBox::getMRL( const QString& )
 
     m.option( "dst", url );
     m.end();
-    return m.getMrl();
+    return m.to_string();
 }
 

@@ -863,8 +863,12 @@ static const staticentry_t p_list_video[] = {
     B(VLC_CODEC_V210, "10-bit 4:2:2 Component YCbCr"),
         A("v210"),
 
+    B(VLC_CODEC_Y210, "Packed 10-bit YUV 4:2:2"),
+        A("Y210"),
     B(VLC_CODEC_VUYA, "Packed YUV 4:4:4, V:U:Y:A"),
         A("VUYA"),
+    B(VLC_CODEC_Y410, "Packed 10-bit YUV 4:4:4"),
+        A("Y410"),
 
     B(VLC_CODEC_NV12, "Biplanar 4:2:0 Y/UV"),
         A("NV12"),
@@ -1047,8 +1051,13 @@ static const staticentry_t p_list_video[] = {
         A("ULRG"),
         A("ULY0"),
         A("ULY2"),
+        A("ULY4"),
         A("ULH0"),
         A("ULH2"),
+        A("ULH4"),
+        A("UQY2"),
+        A("UQRA"),
+        A("UQRG"),
 
     B(VLC_CODEC_VBLE, "VBLE Lossless"),
         A("VBLE"),
@@ -1213,6 +1222,15 @@ static const staticentry_t p_list_video[] = {
 
     B(VLC_CODEC_D3D11_OPAQUE_BGRA, "BGRA D3D11 opaque"),
         A("DAGR"),
+
+    B(VLC_CODEC_NVDEC_OPAQUE, "4:2:0 NVDEC opaque"),
+        A("NVD8"),
+
+    B(VLC_CODEC_NVDEC_OPAQUE_10B, "4:2:0 10bits NVDEC opaque"),
+        A("NVD0"),
+
+    B(VLC_CODEC_NVDEC_OPAQUE_16B, "4:2:0 16bits NVDEC opaque"),
+        A("NVD6"),
 
     B(VLC_CODEC_AGM, "AmuseGraphics Movie"),
         A("AGM0"),

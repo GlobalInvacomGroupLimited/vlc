@@ -1119,6 +1119,22 @@ input_item_t *input_item_Copy( input_item_t *p_input )
         vlc_meta_Merge( meta, p_input->p_meta );
     }
     b_net = p_input->b_net;
+
+    if( likely(item != NULL) && p_input->i_slaves > 0 )
+    {
+        for( int i = 0; i < p_input->i_slaves; i++ )
+        {
+            input_item_slave_t* slave = input_item_slave_New(
+                        p_input->pp_slaves[i]->psz_uri,
+                        p_input->pp_slaves[i]->i_type,
+                        p_input->pp_slaves[i]->i_priority);
+            if( unlikely(slave != NULL) )
+            {
+                TAB_APPEND(item->i_slaves, item->pp_slaves, slave);
+            }
+        }
+    }
+
     vlc_mutex_unlock( &p_input->lock );
 
     if( likely(item != NULL) )
@@ -1361,8 +1377,11 @@ input_item_parser_InputEvent(input_thread_t *input,
 
     switch (event->type)
     {
+        case INPUT_EVENT_TIMES:
+            input_item_SetDuration(input_GetItem(input), event->times.length);
+            break;
         case INPUT_EVENT_STATE:
-            parser->state = event->state;
+            parser->state = event->state.value;
             break;
         case INPUT_EVENT_DEAD:
         {
@@ -1806,8 +1825,8 @@ void vlc_readdir_helper_finish(struct vlc_readdir_helper *p_rdh, bool b_success)
 {
     if (b_success)
     {
-        rdh_attach_slaves(p_rdh, p_rdh->p_node);
         rdh_sort(p_rdh->p_node);
+        rdh_attach_slaves(p_rdh, p_rdh->p_node);
     }
     free(p_rdh->psz_ignored_exts);
 

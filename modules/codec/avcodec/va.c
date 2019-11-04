@@ -40,6 +40,7 @@ vlc_fourcc_t vlc_va_GetChroma(enum PixelFormat hwfmt, enum PixelFormat swfmt)
         case AV_PIX_FMT_VAAPI_VLD:
             switch (swfmt)
             {
+                case AV_PIX_FMT_YUVJ420P:
                 case AV_PIX_FMT_YUV420P:
                     return VLC_CODEC_VAAPI_420;
                 case AV_PIX_FMT_YUV420P10LE:
@@ -52,8 +53,11 @@ vlc_fourcc_t vlc_va_GetChroma(enum PixelFormat hwfmt, enum PixelFormat swfmt)
             {
                 case AV_PIX_FMT_YUV420P10LE:
                     return VLC_CODEC_D3D9_OPAQUE_10B;
-                default:
+                case AV_PIX_FMT_YUVJ420P:
+                case AV_PIX_FMT_YUV420P:
                     return VLC_CODEC_D3D9_OPAQUE;
+                default:
+                    return 0;
             }
             break;
 
@@ -62,8 +66,11 @@ vlc_fourcc_t vlc_va_GetChroma(enum PixelFormat hwfmt, enum PixelFormat swfmt)
             {
                 case AV_PIX_FMT_YUV420P10LE:
                     return VLC_CODEC_D3D11_OPAQUE_10B;
-                default:
+                case AV_PIX_FMT_YUVJ420P:
+                case AV_PIX_FMT_YUV420P:
                     return VLC_CODEC_D3D11_OPAQUE;
+                default:
+                    return 0;
             }
         break;
 
@@ -92,39 +99,41 @@ static int vlc_va_Start(void *func, bool forced, va_list ap)
 {
     vlc_va_t *va = va_arg(ap, vlc_va_t *);
     AVCodecContext *ctx = va_arg(ap, AVCodecContext *);
-    enum PixelFormat pix_fmt = va_arg(ap, enum PixelFormat);
-    const es_format_t *fmt = va_arg(ap, const es_format_t *);
-    void *p_sys = va_arg(ap, void *);
+    const AVPixFmtDescriptor *src_desc = va_arg(ap, const AVPixFmtDescriptor *);
+    const es_format_t *fmt_in = va_arg(ap, const es_format_t *);
+    vlc_decoder_device *device = va_arg(ap, vlc_decoder_device *);
+    video_format_t *fmt_out = va_arg(ap, video_format_t *);
+    vlc_video_context **vtcx_out = va_arg(ap, vlc_video_context **);
     vlc_va_open open = func;
 
     (void) forced;
-    return open(va, ctx, pix_fmt, fmt, p_sys);
+    return open(va, ctx, src_desc, fmt_in, device, fmt_out, vtcx_out);
 }
 
-vlc_va_t *vlc_va_New(vlc_object_t *obj, AVCodecContext *avctx,
-                     enum PixelFormat pix_fmt, const es_format_t *fmt,
-                     void *sys)
+vlc_va_t *vlc_va_New(vlc_object_t *obj,
+                     AVCodecContext *avctx, const AVPixFmtDescriptor *src_desc,
+                     const es_format_t *fmt_in, vlc_decoder_device *device,
+                     video_format_t *fmt_out, vlc_video_context **vtcx_out)
 {
     struct vlc_va_t *va = vlc_object_create(obj, sizeof (*va));
     if (unlikely(va == NULL))
         return NULL;
 
-    char *modlist = var_InheritString(obj, "avcodec-hw");
 
-    if (vlc_module_load(va, "hw decoder", modlist, true,
-                        vlc_va_Start, va, avctx, pix_fmt, fmt, sys) == NULL)
+    if (vlc_module_load(va, "hw decoder", NULL, true,
+                        vlc_va_Start, va, avctx, src_desc, fmt_in, device,
+                        fmt_out, vtcx_out) == NULL)
     {
         vlc_object_delete(va);
         va = NULL;
     }
 
-    free(modlist);
     return va;
 }
 
-void vlc_va_Delete(vlc_va_t *va, void **hwctx)
+void vlc_va_Delete(vlc_va_t *va)
 {
     if (va->ops->close != NULL)
-        va->ops->close(va, hwctx);
+        va->ops->close(va);
     vlc_object_delete(va);
 }

@@ -23,11 +23,14 @@ caca: libcaca-$(CACA_VERSION).tar.gz .sum-caca
 	$(APPLY) $(SRC)/caca/caca-osx-sdkofourchoice.patch
 	$(APPLY) $(SRC)/caca/caca-win32-static.patch
 	$(APPLY) $(SRC)/caca/caca-fix-ln-call.patch
+	$(APPLY) $(SRC)/caca/caca-fix-pkgconfig.patch
+	$(call pkg_static,"caca/caca.pc.in")
 	$(UPDATE_AUTOCONFIG)
 	$(MOVE)
 	mv caca/config.sub caca/config.guess caca/.auto
 
 CACA_CONF := \
+	--disable-gl \
 	--disable-imlib2 \
 	--disable-doc \
 	--disable-ruby \
@@ -38,6 +41,9 @@ ifdef HAVE_MACOSX
 CACA_CONF += --disable-x11
 endif
 ifdef HAVE_WIN32
+CACA_CONF += --disable-ncurses
+endif
+ifdef HAVE_LINUX
 CACA_CONF += --disable-ncurses
 endif
 

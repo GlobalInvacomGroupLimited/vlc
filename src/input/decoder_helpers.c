@@ -31,6 +31,7 @@
 #include <vlc_atomic.h>
 #include <vlc_meta.h>
 #include <vlc_modules.h>
+#include <vlc_picture.h>
 #include "libvlc.h"
 
 void decoder_Init( decoder_t *p_dec, const es_format_t *restrict p_fmt )
@@ -77,12 +78,77 @@ void decoder_Destroy( decoder_t *p_dec )
 
 int decoder_UpdateVideoFormat( decoder_t *dec )
 {
+    return decoder_UpdateVideoOutput( dec, NULL );
+}
+
+int decoder_UpdateVideoOutput( decoder_t *dec, vlc_video_context *vctx_out )
+{
     vlc_assert( dec->fmt_in.i_cat == VIDEO_ES && dec->cbs != NULL );
-    if ( unlikely(dec->fmt_in.i_cat != VIDEO_ES || dec->cbs == NULL ||
-                  dec->cbs->video.format_update == NULL) )
+    if ( unlikely(dec->fmt_in.i_cat != VIDEO_ES || dec->cbs == NULL) )
         return -1;
 
-    return dec->cbs->video.format_update( dec );
+    /* */
+    dec->fmt_out.video.i_chroma = dec->fmt_out.i_codec;
+
+    if( dec->fmt_out.video.i_visible_height == 1088 &&
+        var_CreateGetBool( dec, "hdtv-fix" ) )
+    {
+        dec->fmt_out.video.i_visible_height = 1080;
+        if( !(dec->fmt_out.video.i_sar_num % 136))
+        {
+            dec->fmt_out.video.i_sar_num *= 135;
+            dec->fmt_out.video.i_sar_den *= 136;
+        }
+        msg_Warn( dec, "Fixing broken HDTV stream (display_height=1088)");
+    }
+
+    if( !dec->fmt_out.video.i_sar_num || !dec->fmt_out.video.i_sar_den )
+    {
+        dec->fmt_out.video.i_sar_num = 1;
+        dec->fmt_out.video.i_sar_den = 1;
+    }
+
+    vlc_ureduce( &dec->fmt_out.video.i_sar_num, &dec->fmt_out.video.i_sar_den,
+                    dec->fmt_out.video.i_sar_num, dec->fmt_out.video.i_sar_den, 50000 );
+
+    if( vlc_fourcc_IsYUV( dec->fmt_out.video.i_chroma ) )
+    {
+        const vlc_chroma_description_t *dsc = vlc_fourcc_GetChromaDescription( dec->fmt_out.video.i_chroma );
+        for( unsigned int i = 0; dsc && i < dsc->plane_count; i++ )
+        {
+            while( dec->fmt_out.video.i_width % dsc->p[i].w.den )
+                dec->fmt_out.video.i_width++;
+            while( dec->fmt_out.video.i_height % dsc->p[i].h.den )
+                dec->fmt_out.video.i_height++;
+        }
+    }
+
+    if( !dec->fmt_out.video.i_visible_width ||
+        !dec->fmt_out.video.i_visible_height )
+    {
+        if( dec->fmt_in.video.i_visible_width &&
+            dec->fmt_in.video.i_visible_height )
+        {
+            dec->fmt_out.video.i_visible_width  = dec->fmt_in.video.i_visible_width;
+            dec->fmt_out.video.i_visible_height = dec->fmt_in.video.i_visible_height;
+            dec->fmt_out.video.i_x_offset       = dec->fmt_in.video.i_x_offset;
+            dec->fmt_out.video.i_y_offset       = dec->fmt_in.video.i_y_offset;
+        }
+        else
+        {
+            dec->fmt_out.video.i_visible_width  = dec->fmt_out.video.i_width;
+            dec->fmt_out.video.i_visible_height = dec->fmt_out.video.i_height;
+            dec->fmt_out.video.i_x_offset       = 0;
+            dec->fmt_out.video.i_y_offset       = 0;
+        }
+    }
+
+    video_format_AdjustColorSpace( &dec->fmt_out.video );
+
+    if (dec->cbs->video.format_update == NULL)
+        return 0;
+
+    return dec->cbs->video.format_update( dec, vctx_out );
 }
 
 picture_t *decoder_NewPicture( decoder_t *dec )
@@ -93,6 +159,13 @@ picture_t *decoder_NewPicture( decoder_t *dec )
     return dec->cbs->video.buffer_new( dec );
 }
 
+void decoder_AbortPictures(decoder_t *dec, bool abort)
+{
+    vlc_assert(dec->fmt_in.i_cat == VIDEO_ES && dec->cbs);
+    if (dec->cbs->video.abort_pictures)
+        dec->cbs->video.abort_pictures(dec, abort);
+}
+
 struct vlc_decoder_device_priv
 {
     struct vlc_decoder_device device;
@@ -101,26 +174,11 @@ struct vlc_decoder_device_priv
 
 static int decoder_device_Open(void *func, bool forced, va_list ap)
 {
+    VLC_UNUSED(forced);
     vlc_decoder_device_Open open = func;
     vlc_decoder_device *device = va_arg(ap, vlc_decoder_device *);
     vout_window_t *window = va_arg(ap, vout_window_t *);
-    int ret = open(device, window);
-    if (ret != VLC_SUCCESS)
-    {
-        struct vlc_decoder_device_priv *priv =
-            container_of(device, struct vlc_decoder_device_priv, device);
-
-        vlc_objres_clear(VLC_OBJECT(&priv->device));
-        device->sys = NULL;
-        device->type = VLC_DECODER_DEVICE_NONE;
-        device->opaque = NULL;
-    }
-    else
-    {
-        assert(device->type != VLC_DECODER_DEVICE_NONE);
-    }
-    (void) forced;
-    return ret;
+    return open(device, window);
 }
 
 vlc_decoder_device *
@@ -166,4 +224,71 @@ vlc_decoder_device_Release(vlc_decoder_device *device)
         vlc_objres_clear(VLC_OBJECT(device));
         vlc_object_delete(device);
     }
+}
+
+/* video context */
+
+struct vlc_video_context
+{
+    vlc_atomic_rc_t    rc;
+    vlc_decoder_device *device;
+    const struct vlc_video_context_operations *ops;
+    enum vlc_video_context_type private_type;
+    size_t private_size;
+    uint8_t private[];
+};
+
+vlc_video_context * vlc_video_context_Create(vlc_decoder_device *device,
+                                          enum vlc_video_context_type private_type,
+                                          size_t private_size,
+                                          const struct vlc_video_context_operations *ops)
+{
+    vlc_video_context *vctx = malloc(sizeof(*vctx) + private_size);
+    if (unlikely(vctx == NULL))
+        return NULL;
+    vlc_atomic_rc_init( &vctx->rc );
+    vctx->private_type = private_type;
+    vctx->private_size = private_size;
+    vctx->device = device;
+    if (vctx->device)
+        vlc_decoder_device_Hold( vctx->device );
+    vctx->ops = ops;
+    return vctx;
+}
+
+void *vlc_video_context_GetPrivate(vlc_video_context *vctx, enum vlc_video_context_type type)
+{
+    if (vctx && vctx->private_type == type)
+        return &vctx->private;
+    return NULL;
+}
+
+enum vlc_video_context_type vlc_video_context_GetType(const vlc_video_context *vctx)
+{
+    return vctx->private_type;
+}
+
+vlc_video_context *vlc_video_context_Hold(vlc_video_context *vctx)
+{
+    vlc_atomic_rc_inc( &vctx->rc );
+    return vctx;
+}
+
+void vlc_video_context_Release(vlc_video_context *vctx)
+{
+    if ( vlc_atomic_rc_dec( &vctx->rc ) )
+    {
+        if (vctx->device)
+            vlc_decoder_device_Release( vctx->device );
+        if ( vctx->ops && vctx->ops->destroy )
+            vctx->ops->destroy( vlc_video_context_GetPrivate(vctx, vctx->private_type) );
+        free(vctx);
+    }
+}
+
+vlc_decoder_device* vlc_video_context_HoldDevice(vlc_video_context *vctx)
+{
+    if (!vctx->device)
+        return NULL;
+    return vlc_decoder_device_Hold( vctx->device );
 }

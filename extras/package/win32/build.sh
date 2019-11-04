@@ -93,21 +93,37 @@ esac
 
 #####
 
+SCRIPT_PATH="$( cd "$(dirname "$0")" ; pwd -P )"
+
 : ${JOBS:=$(getconf _NPROCESSORS_ONLN 2>&1)}
 TRIPLET=$ARCH-w64-mingw32
 
+# Check if compiling with clang
+CC=${CC:-$TRIPLET-gcc}
+if ! printf "#ifdef __clang__\n#error CLANG\n#endif" | $CC -E -; then
+    COMPILING_WITH_CLANG=1
+else
+    COMPILING_WITH_CLANG=0
+fi
+
 info "Building extra tools"
+mkdir -p extras/tools
 cd extras/tools
+
+export PATH="$PWD/build/bin":"$PATH"
+# Force libtool build when compiling with clang
+if [ "$COMPILING_WITH_CLANG" -gt 0 ] && [ ! -d "libtool" ]; then
+    FORCED_TOOLS="libtool"
+fi
 # bootstrap only if needed in interactive mode
 if [ "$INTERACTIVE" != "yes" ] || [ ! -f ./Makefile ]; then
-    ./bootstrap
+    NEEDED="$FORCED_TOOLS" ${SCRIPT_PATH}/../../tools/bootstrap
 fi
 make -j$JOBS
-export PATH="$PWD/build/bin":"$PATH"
 cd ../../
 
 export USE_FFMPEG=1
-export PKG_CONFIG_LIBDIR=$PWD/contrib/$TRIPLET/lib/pkgconfig
+export PKG_CONFIG_LIBDIR="$PWD/contrib/$TRIPLET/lib/pkgconfig"
 export PATH="$PWD/contrib/$TRIPLET/bin":"$PATH"
 
 if [ "$INTERACTIVE" = "yes" ]; then
@@ -128,28 +144,34 @@ fi
 if [ ! -z "$BREAKPAD" ]; then
      CONTRIBFLAGS="$CONTRIBFLAGS --enable-breakpad"
 fi
-../bootstrap --host=$TRIPLET $CONTRIBFLAGS
+if [ "$RELEASE" != "yes" ]; then
+     CONTRIBFLAGS="$CONTRIBFLAGS --disable-optim"
+fi
+${SCRIPT_PATH}/../../../contrib/bootstrap --host=$TRIPLET $CONTRIBFLAGS
 
 # Rebuild the contribs or use the prebuilt ones
 if [ "$PREBUILT" != "yes" ]; then
-make list
-make -j$JOBS fetch
-make -j$JOBS -k || make -j1
-if [ "$PACKAGE" = "yes" ]; then
-make package
-fi
+    make list
+    make -j$JOBS fetch
+    make -j$JOBS -k || make -j1
+    if [ "$PACKAGE" = "yes" ]; then
+        make package
+    fi
+elif [ -n "$VLC_PREBUILT_CONTRIBS_URL" ]; then
+    make prebuilt PREBUILT_URL="$VLC_PREBUILT_CONTRIBS_URL"
+    make .luac
 else
-make prebuilt
-make .luac
+    make prebuilt
+    make .luac
 fi
 cd ../..
 
 info "Bootstrapping"
 
-./bootstrap
+${SCRIPT_PATH}/../../../bootstrap
 
 info "Configuring VLC"
-mkdir $SHORTARCH || true
+mkdir -p $SHORTARCH
 cd $SHORTARCH
 
 CONFIGFLAGS=""
@@ -168,7 +190,7 @@ if [ ! -z "$WITH_PDB" ]; then
     CONFIGFLAGS="$CONFIGFLAGS --enable-pdb"
 fi
 
-../extras/package/win32/configure.sh --host=$TRIPLET $CONFIGFLAGS
+${SCRIPT_PATH}/configure.sh --host=$TRIPLET --with-contrib=../contrib/$TRIPLET $CONFIGFLAGS
 
 info "Compiling"
 make -j$JOBS

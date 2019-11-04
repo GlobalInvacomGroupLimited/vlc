@@ -49,10 +49,13 @@ struct decoder_owner_callbacks
     {
         struct
         {
-            int         (*format_update)( decoder_t * );
+            vlc_decoder_device * (*get_device)( decoder_t * );
+            int         (*format_update)( decoder_t *, vlc_video_context * );
 
             /* cf. decoder_NewPicture, can be called from any decoder thread */
             picture_t*  (*buffer_new)( decoder_t * );
+            /* cf. decoder_AbortPictures */
+            void        (*abort_pictures)( decoder_t *, bool b_abort );
             /* cf.decoder_QueueVideo */
             void        (*queue)( decoder_t *, picture_t * );
             /* cf.decoder_QueueCC */
@@ -252,6 +255,52 @@ struct encoder_t
  * \ingroup decoder
  * @{
  */
+
+/**
+ * Creates/Updates the output decoder device.
+ *
+ * This function notifies the video output pipeline of a new video output
+ * format (fmt_out.video). If there was no decoder device so far or a new
+ * decoder device is required, a new decoder device will be set up.
+ * decoder_UpdateVideoOutput() can then be used.
+ *
+ * If the format is unchanged, this function has no effects and returns zero.
+ *
+ * \param dec the decoder object
+ *
+ * \note
+ * This function is not reentrant.
+ *
+ * @return the received of the held decoder device, NULL not to get one
+ */
+static inline vlc_decoder_device * decoder_GetDecoderDevice( decoder_t *dec )
+{
+    vlc_assert( dec->fmt_in.i_cat == VIDEO_ES && dec->cbs != NULL );
+    if ( unlikely(dec->fmt_in.i_cat != VIDEO_ES || dec->cbs == NULL ) )
+        return NULL;
+
+    if ( dec->cbs->video.get_device == NULL )
+        return NULL; /* TODO make it mandatory for all decoder owners */
+
+    return dec->cbs->video.get_device( dec );
+}
+
+/**
+ * Creates/Updates the rest of the video output pipeline.
+ *
+ * After a call to decoder_GetDecoderDevice() this function notifies the
+ * video output pipeline of a new video output format (fmt_out.video). If there
+ * was no video output from the decoder so far, a new decoder video output will
+ * be set up. decoder_NewPicture() can then be used to allocate picture buffers.
+ *
+ * If the format is unchanged, this function has no effects and returns zero.
+ *
+ * \note
+ * This function is not reentrant.
+ *
+ * @return 0 if the video output was set up successfully, -1 otherwise.
+ */
+VLC_API int decoder_UpdateVideoOutput( decoder_t *dec, vlc_video_context *vctx_out );
 
 /**
  * Updates the video output format.
@@ -485,12 +534,12 @@ static inline float decoder_GetDisplayRate( decoder_t *dec )
 /** Decoder device type */
 enum vlc_decoder_device_type
 {
-    VLC_DECODER_DEVICE_NONE,
     VLC_DECODER_DEVICE_VAAPI,
     VLC_DECODER_DEVICE_VDPAU,
     VLC_DECODER_DEVICE_DXVA2,
     VLC_DECODER_DEVICE_D3D11VA,
     VLC_DECODER_DEVICE_AWINDOW,
+    VLC_DECODER_DEVICE_NVDEC,
     VLC_DECODER_DEVICE_MMAL,
 };
 
@@ -522,9 +571,10 @@ typedef struct vlc_decoder_device
      * The type of pointer will depend of the type:
      * VAAPI: VADisplay
      * VDPAU: vdp_t *
-     * DXVA2: IDirect3DDevice9*
-     * D3D11VA: ID3D11DeviceContext*
+     * DXVA2: d3d9_decoder_device_t*
+     * D3D11VA: d3d11_decoder_device_t*
      * AWindow: android AWindowHandler*
+     * NVDEC: decoder_device_nvdec_t*
      * MMAL: MMAL_PORT_T*
      */
     void *opaque;

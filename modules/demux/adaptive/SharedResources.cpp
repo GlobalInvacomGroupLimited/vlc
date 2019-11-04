@@ -23,20 +23,26 @@
 
 #include "SharedResources.hpp"
 #include "http/AuthStorage.hpp"
+#include "http/HTTPConnectionManager.h"
 #include "encryption/Keyring.hpp"
 
 #include <vlc_common.h>
 
 using namespace adaptive;
 
-SharedResources::SharedResources(vlc_object_t *obj)
+SharedResources::SharedResources(vlc_object_t *obj, bool local)
 {
     authStorage = new AuthStorage(obj);
     encryptionKeyring = new Keyring(obj);
+    HTTPConnectionManager *m = new HTTPConnectionManager(obj, authStorage);
+    if(m && local)
+        m->setLocalConnectionsAllowed();
+    connManager = m;
 }
 
 SharedResources::~SharedResources()
 {
+    delete connManager;
     delete encryptionKeyring;
     delete authStorage;
 }
@@ -49,4 +55,9 @@ AuthStorage * SharedResources::getAuthStorage()
 Keyring * SharedResources::getKeyring()
 {
     return encryptionKeyring;
+}
+
+AbstractConnectionManager * SharedResources::getConnManager()
+{
+    return connManager;
 }

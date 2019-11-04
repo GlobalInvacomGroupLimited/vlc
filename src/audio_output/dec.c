@@ -54,7 +54,8 @@ static void aout_Drain(audio_output_t *aout)
  * Creates an audio output
  */
 int aout_DecNew(audio_output_t *p_aout, const audio_sample_format_t *p_format,
-                vlc_clock_t *clock, const audio_replay_gain_t *p_replay_gain)
+                int profile, vlc_clock_t *clock,
+                const audio_replay_gain_t *p_replay_gain)
 {
     assert(p_aout);
     assert(p_format);
@@ -91,17 +92,19 @@ int aout_DecNew(audio_output_t *p_aout, const audio_sample_format_t *p_format,
     owner->volume = aout_volume_New (p_aout, p_replay_gain);
 
     atomic_store_explicit(&owner->restart, 0, memory_order_relaxed);
-    owner->input_format = *p_format;
-    owner->mixer_format = owner->input_format;
+    owner->input_profile = profile;
+    owner->filter_format = owner->mixer_format = owner->input_format = *p_format;
+
     owner->sync.clock = clock;
 
     owner->filters_cfg = AOUT_FILTERS_CFG_INIT;
-    if (aout_OutputNew (p_aout, &owner->mixer_format, &owner->filters_cfg))
+    if (aout_OutputNew (p_aout))
         goto error;
     aout_volume_SetFormat (owner->volume, owner->mixer_format.i_format);
 
     /* Create the audio filtering "input" pipeline */
-    owner->filters = aout_FiltersNewWithClock(VLC_OBJECT(p_aout), clock, p_format,
+    owner->filters = aout_FiltersNewWithClock(VLC_OBJECT(p_aout), clock,
+                                              &owner->filter_format,
                                               &owner->mixer_format,
                                               &owner->filters_cfg);
     if (owner->filters == NULL)
@@ -159,9 +162,9 @@ static int aout_CheckReady (audio_output_t *aout)
             msg_Dbg (aout, "restarting output...");
             if (owner->mixer_format.i_format)
                 aout_OutputDelete (aout);
-            owner->mixer_format = owner->input_format;
+            owner->filter_format = owner->mixer_format = owner->input_format;
             owner->filters_cfg = AOUT_FILTERS_CFG_INIT;
-            if (aout_OutputNew (aout, &owner->mixer_format, &owner->filters_cfg))
+            if (aout_OutputNew (aout))
                 owner->mixer_format.i_format = 0;
             aout_volume_SetFormat (owner->volume,
                                    owner->mixer_format.i_format);
@@ -181,7 +184,7 @@ static int aout_CheckReady (audio_output_t *aout)
         {
             owner->filters = aout_FiltersNewWithClock(VLC_OBJECT(aout),
                                                       owner->sync.clock,
-                                                      &owner->input_format,
+                                                      &owner->filter_format,
                                                       &owner->mixer_format,
                                                       &owner->filters_cfg);
             if (owner->filters == NULL)
@@ -306,6 +309,9 @@ void aout_RequestRetiming(audio_output_t *aout, vlc_tick_t system_ts,
     float rate = owner->sync.rate;
     vlc_tick_t drift =
         -vlc_clock_Update(owner->sync.clock, system_ts, audio_ts, rate);
+
+    if (unlikely(drift == INT64_MAX))
+        return; /* cf. INT64_MAX comment in aout_DecPlay() */
 
     /* Late audio output.
      * This can happen due to insufficient caching, scheduling jitter
@@ -456,9 +462,16 @@ int aout_DecPlay(audio_output_t *aout, block_t *block)
     vlc_tick_t system_now = vlc_tick_now();
     aout_DecSynchronize(aout, system_now, original_pts);
 
-    const vlc_tick_t play_date =
+    vlc_tick_t play_date =
         vlc_clock_ConvertToSystem(owner->sync.clock, system_now, original_pts,
                                   owner->sync.rate);
+    if (unlikely(play_date == INT64_MAX))
+    {
+        /* The clock is paused but not the output, play the audio anyway since
+         * we can't delay audio playback from here. */
+        play_date = system_now;
+
+    }
     /* Output */
     owner->sync.discontinuity = false;
     aout->play(aout, block, play_date);

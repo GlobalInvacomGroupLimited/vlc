@@ -139,8 +139,10 @@ static void mp4mux_trackinfo_Clear(mp4mux_trackinfo_t *p_stream)
 mp4mux_trackinfo_t * mp4mux_track_Add(mp4mux_handle_t *h, unsigned id,
                                       const es_format_t *fmt, uint32_t timescale)
 {
+    if(unlikely(id == 0))
+        return NULL;
     mp4mux_trackinfo_t *t = malloc(sizeof(*t));
-    if(!mp4mux_trackinfo_Init(t, 0, 0))
+    if(!t || !mp4mux_trackinfo_Init(t, 0, 0))
     {
         free(t);
         return NULL;
@@ -156,8 +158,11 @@ mp4mux_trackinfo_t * mp4mux_track_Add(mp4mux_handle_t *h, unsigned id,
 
 bool mp4mux_track_AddEdit(mp4mux_trackinfo_t *t, const mp4mux_edit_t *p_newedit)
 {
-    mp4mux_edit_t *p_realloc = realloc( t->p_edits, sizeof(mp4mux_edit_t) *
-                                       (t->i_edits_count + 1) );
+    if(t->i_edits_count + 1 < t->i_edits_count)
+        return false;
+    mp4mux_edit_t *p_realloc = vlc_reallocarray( t->p_edits,
+                                                 t->i_edits_count + 1,
+                                                 sizeof(*p_realloc) );
     if(unlikely(!p_realloc))
         return false;
 
@@ -191,8 +196,11 @@ bool mp4mux_track_AddSample(mp4mux_trackinfo_t *t, const mp4mux_sample_t *entry)
     /* XXX: -1 to always have 2 entry for easy adding of empty SPU */
     if (t->i_samples_count + 2 >= t->i_samples_max)
     {
-        mp4mux_sample_t *p_realloc =
-                realloc(t->samples, sizeof(*p_realloc) * (t->i_samples_max + 1000));
+        if(t->i_samples_max + 1000 < t->i_samples_max)
+            return false;
+        mp4mux_sample_t *p_realloc = vlc_reallocarray(t->samples,
+                                                      t->i_samples_max + 1000,
+                                                      sizeof(*p_realloc));
         if(!p_realloc)
             return false;
         t->samples = p_realloc;
@@ -1691,7 +1699,15 @@ bo_t * mp4mux_GetMoov(mp4mux_handle_t *h, vlc_object_t *p_obj, vlc_tick_t i_dura
     const mp4mux_trackinfo_t *lasttrack = vlc_array_count(&h->tracks)
                                         ? vlc_array_item_at_index(&h->tracks, vlc_array_count(&h->tracks) - 1)
                                         : NULL;
-    bo_add_32be(mvhd, lasttrack ? lasttrack->i_track_id + 1: 1); // next-track-id
+    uint32_t i_next_track_id = 1;
+    if(lasttrack)
+    {
+        if(lasttrack->i_track_id < 0xFFFFFFFFU)
+            i_next_track_id += lasttrack->i_track_id;
+        else
+            i_next_track_id = 0xFFFFFFFFU;
+    }
+    bo_add_32be(mvhd, i_next_track_id); // next-track-id
 
     box_gather(moov, mvhd);
 

@@ -55,7 +55,8 @@ static void VoutViewpointMoved(void *sys, const vlc_viewpoint_t *vp)
  *
  *****************************************************************************/
 vout_display_t *vout_OpenWrapper(vout_thread_t *vout,
-                     const char *splitter_name, const vout_display_cfg_t *cfg)
+                     const char *splitter_name, const vout_display_cfg_t *cfg,
+                     vlc_video_context *vctx)
 {
     vout_thread_sys_t *sys = vout->p;
     vout_display_t *vd;
@@ -72,65 +73,45 @@ vout_display_t *vout_OpenWrapper(vout_thread_t *vout,
     else
         modlist = "splitter,none";
 
-    vd = vout_display_New(VLC_OBJECT(vout), &sys->original, cfg, modlist,
-                          &owner);
+    vd = vout_display_New(VLC_OBJECT(vout), &sys->original, vctx, cfg,
+                          modlist, &owner);
     free(modlistbuf);
 
     if (vd == NULL)
         return NULL;
 
-    sys->decoder_pool = NULL;
     sys->display_pool = NULL;
 
-    const bool use_dr = !vout_IsDisplayFiltered(vd);
-    const bool allow_dr = !vd->info.has_pictures_invalid && !vd->info.is_slow && use_dr;
     const unsigned private_picture  = 4; /* XXX 3 for filter, 1 for SPU */
-    const unsigned decoder_picture  = 1 + sys->dpb_size;
     const unsigned kept_picture     = 1; /* last displayed picture */
     const unsigned reserved_picture = DISPLAY_PICTURE_COUNT +
                                       private_picture +
                                       kept_picture;
-    const unsigned display_pool_size = allow_dr ? __MAX(VOUT_MAX_PICTURES,
-                                                        reserved_picture + decoder_picture) : 3;
-    picture_pool_t *display_pool = vout_GetPool(vd, display_pool_size);
+
+    picture_pool_t *display_pool = vout_GetPool(vd, reserved_picture);
     if (display_pool == NULL)
         goto error;
 
-    picture_pool_t *decoder_pool = NULL;
-
 #ifndef NDEBUG
-    if ( picture_pool_GetSize(display_pool) < display_pool_size )
+    if ( picture_pool_GetSize(display_pool) < reserved_picture )
         msg_Warn(vout, "Not enough display buffers in the pool, requested %u got %u",
-                 display_pool_size, picture_pool_GetSize(display_pool));
+                 reserved_picture, picture_pool_GetSize(display_pool));
 #endif
 
-    if (allow_dr &&
-        picture_pool_GetSize(display_pool) >= reserved_picture + decoder_picture) {
-        sys->dpb_size     = picture_pool_GetSize(display_pool) - reserved_picture;
-        sys->decoder_pool = display_pool;
+    if (!vout_IsDisplayFiltered(vd) &&
+        picture_pool_GetSize(display_pool) >= reserved_picture) {
+        sys->private_pool = picture_pool_Reserve(display_pool, private_picture);
     } else {
-        sys->decoder_pool = decoder_pool =
+        sys->private_pool =
             picture_pool_NewFromFormat(&vd->source,
                                        __MAX(VOUT_MAX_PICTURES,
-                                             reserved_picture + decoder_picture - DISPLAY_PICTURE_COUNT));
-        if (!sys->decoder_pool)
-            goto error;
-        if (allow_dr) {
-            msg_Warn(vout, "Not enough direct buffers, using system memory");
-            sys->dpb_size = 0;
-        } else {
-            sys->dpb_size = picture_pool_GetSize(sys->decoder_pool) - reserved_picture;
-        }
-        if (use_dr)
-            sys->display_pool = vout_GetPool(vd, 3);
+                                             reserved_picture - DISPLAY_PICTURE_COUNT));
     }
-    sys->private_pool = picture_pool_Reserve(sys->decoder_pool, private_picture);
     if (sys->private_pool == NULL) {
-        if (decoder_pool != NULL)
-            picture_pool_Release(decoder_pool);
-        sys->decoder_pool = NULL;
+        picture_pool_Release(display_pool);
         goto error;
     }
+    sys->display_pool = display_pool;
 
 #ifdef _WIN32
     var_Create(vout, "video-wallpaper", VLC_VAR_BOOL|VLC_VAR_DOINHERIT);
@@ -152,17 +133,14 @@ void vout_CloseWrapper(vout_thread_t *vout, vout_display_t *vd)
 {
     vout_thread_sys_t *sys = vout->p;
 
-    assert(vout->p->decoder_pool && vout->p->private_pool);
+    assert(sys->display_pool && sys->private_pool);
 
     picture_pool_Release(sys->private_pool);
-
-    if (sys->display_pool != NULL || vout_IsDisplayFiltered(vd))
-        picture_pool_Release(sys->decoder_pool);
+    sys->display_pool = NULL;
 
 #ifdef _WIN32
     var_DelCallback(vout, "video-wallpaper", Forward, vd);
 #endif
-    sys->decoder_pool = NULL; /* FIXME remove */
 
     vout_display_Delete(vd);
 }

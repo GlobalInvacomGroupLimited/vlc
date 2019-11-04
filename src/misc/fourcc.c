@@ -219,7 +219,7 @@ const char *vlc_fourcc_GetDescription(int cat, vlc_fourcc_t fourcc)
     VLC_CODEC_I420_16L, VLC_CODEC_I420_16B, VLC_CODEC_I420_12L, VLC_CODEC_I420_12B, VLC_CODEC_I420_10L, VLC_CODEC_I420_10B, VLC_CODEC_I420_9L, VLC_CODEC_I420_9B
 
 #define VLC_CODEC_YUV_SEMIPLANAR_420_16 \
-    VLC_CODEC_P010
+    VLC_CODEC_P010, VLC_CODEC_P016
 
 #define VLC_CODEC_YUV_PLANAR_422 \
     VLC_CODEC_I422, VLC_CODEC_J422
@@ -420,6 +420,22 @@ static const vlc_fourcc_t p_D3D11_OPAQUE_RGBA_fallback[] = {
     VLC_CODEC_D3D11_OPAQUE_RGBA, VLC_CODEC_RGBA, 0,
 };
 
+static const vlc_fourcc_t p_NVDEC_OPAQUE_fallback[] = {
+    VLC_CODEC_NVDEC_OPAQUE, VLC_CODEC_NV12, 0,
+};
+
+static const vlc_fourcc_t p_NVDEC_OPAQUE_10B_fallback[] = {
+    VLC_CODEC_NVDEC_OPAQUE_10B,
+    VLC_CODEC_P010,
+    VLC_CODEC_I420_10L, 0,
+};
+
+static const vlc_fourcc_t p_NVDEC_OPAQUE_16B_fallback[] = {
+    VLC_CODEC_NVDEC_OPAQUE_16B,
+    VLC_CODEC_P016, VLC_CODEC_P010,
+    VLC_CODEC_I420_16L, VLC_CODEC_I420_12L, VLC_CODEC_I420_10L, 0,
+};
+
 static const vlc_fourcc_t p_I440_fallback[] = {
     VLC_CODEC_I440,
     VLC_CODEC_YUV_PLANAR_420,
@@ -510,6 +526,9 @@ static const vlc_fourcc_t *pp_YUV_fallback[] = {
     p_D3D9_OPAQUE_10B_fallback,
     p_D3D11_OPAQUE_fallback,
     p_D3D11_OPAQUE_10B_fallback,
+    p_NVDEC_OPAQUE_fallback,
+    p_NVDEC_OPAQUE_10B_fallback,
+    p_NVDEC_OPAQUE_16B_fallback,
     NULL,
 };
 
@@ -541,6 +560,9 @@ static const vlc_fourcc_t p_list_YUV[] = {
     VLC_CODEC_D3D9_OPAQUE_10B,
     VLC_CODEC_D3D11_OPAQUE,
     VLC_CODEC_D3D11_OPAQUE_10B,
+    VLC_CODEC_NVDEC_OPAQUE,
+    VLC_CODEC_NVDEC_OPAQUE_10B,
+    VLC_CODEC_NVDEC_OPAQUE_16B,
     0,
 };
 
@@ -778,7 +800,8 @@ static const struct
     { { VLC_CODEC_RGBA, VLC_CODEC_ARGB,
         VLC_CODEC_BGRA, VLC_CODEC_RGBA10 },    PACKED_FMT(4, 32) },
     { { VLC_CODEC_RGBA64, 0 },                 PACKED_FMT(8, 64) },
-    { { VLC_CODEC_VUYA, 0 },                   PACKED_FMT(4, 32) },
+    { { VLC_CODEC_VUYA, VLC_CODEC_Y210,
+        VLC_CODEC_Y410, 0 },                   PACKED_FMT(4, 32) },
 
     { { VLC_CODEC_Y211, 0 },                   { 1, { {{1,4}, {1,1}} }, 4, 32 } },
     { { VLC_CODEC_XYZ12,  0 },                 PACKED_FMT(6, 48) },
@@ -791,6 +814,10 @@ static const struct
                                                FAKE_FMT() },
     { { VLC_CODEC_D3D11_OPAQUE_10B, VLC_CODEC_D3D9_OPAQUE_10B,
         VLC_CODEC_D3D11_OPAQUE_RGBA, VLC_CODEC_D3D11_OPAQUE_BGRA },
+                                               FAKE_FMT() },
+
+    { { VLC_CODEC_NVDEC_OPAQUE_16B,
+        VLC_CODEC_NVDEC_OPAQUE_10B, VLC_CODEC_NVDEC_OPAQUE },
                                                FAKE_FMT() },
 
     { { VLC_CODEC_CVPX_NV12, VLC_CODEC_CVPX_UYVY,

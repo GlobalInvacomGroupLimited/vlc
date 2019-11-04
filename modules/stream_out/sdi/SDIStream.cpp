@@ -480,13 +480,11 @@ void VideoDecodedStream::VideoDecCallback_queue_cc(decoder_t *p_dec, block_t *p_
     static_cast<VideoDecodedStream *>(p_owner->id)->QueueCC(p_block);
 }
 
-int VideoDecodedStream::VideoDecCallback_update_format(decoder_t *p_dec)
+int VideoDecodedStream::VideoDecCallback_update_format(decoder_t *p_dec,
+                                                       vlc_video_context *)
 {
     struct decoder_owner *p_owner;
     p_owner = container_of(p_dec, struct decoder_owner, dec);
-
-    /* fixup */
-    p_dec->fmt_out.video.i_chroma = p_dec->fmt_out.i_codec;
 
     es_format_Clean(&p_owner->last_fmt_update);
     es_format_Copy(&p_owner->last_fmt_update, &p_dec->fmt_out);
@@ -502,7 +500,7 @@ static picture_t *transcode_video_filter_buffer_new(filter_t *p_filter)
 
 static const struct filter_video_callbacks transcode_filter_video_cbs =
 {
-    .buffer_new = transcode_video_filter_buffer_new,
+    transcode_video_filter_buffer_new,
 };
 
 filter_chain_t * VideoDecodedStream::VideoFilterCreate(const es_format_t *p_srcfmt)

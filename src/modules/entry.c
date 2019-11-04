@@ -72,7 +72,7 @@ module_t *vlc_module_create(vlc_plugin_t *plugin)
     module->activate_name = NULL;
     module->deactivate_name = NULL;
     module->pf_activate = NULL;
-    module->pf_deactivate = NULL;
+    module->deactivate = NULL;
     return module;
 }
 
@@ -274,7 +274,7 @@ static int vlc_plugin_desc_cb(void *ctx, void *tgt, int propid, ...)
 
         case VLC_MODULE_CB_CLOSE:
             module->deactivate_name = va_arg(ap, const char *);
-            module->pf_deactivate = va_arg (ap, void *);
+            module->deactivate = va_arg(ap, void (*)(vlc_object_t *));
             break;
 
         case VLC_MODULE_NO_UNLOAD:
@@ -484,7 +484,6 @@ static int vlc_plugin_gpa_cb(void *ctx, void *tgt, int propid, ...)
     switch (propid)
     {
         case VLC_MODULE_CB_OPEN:
-        case VLC_MODULE_CB_CLOSE:
         {
             va_list ap;
 
@@ -492,6 +491,16 @@ static int vlc_plugin_gpa_cb(void *ctx, void *tgt, int propid, ...)
             name = va_arg(ap, const char *);
             addr = va_arg(ap, void *);
             va_end (ap);
+            break;
+        }
+        case VLC_MODULE_CB_CLOSE:
+        {
+            va_list ap;
+
+            va_start(ap, propid);
+            name = va_arg(ap, const char *);
+            addr = va_arg(ap, void (*)(vlc_object_t *));
+            va_end(ap);
             break;
         }
         default:
@@ -503,8 +512,7 @@ static int vlc_plugin_gpa_cb(void *ctx, void *tgt, int propid, ...)
     sym->name = name;
     sym->addr = addr;
 
-    struct vlc_plugin_symbol **symp = tsearch(sym, rootp,
-                                              vlc_plugin_symbol_compare);
+    void **symp = tsearch(sym, rootp, vlc_plugin_symbol_compare);
     if (unlikely(symp == NULL))
     {   /* Memory error */
         free(sym);
@@ -513,7 +521,10 @@ static int vlc_plugin_gpa_cb(void *ctx, void *tgt, int propid, ...)
 
     if (*symp != sym)
     {   /* Duplicate symbol */
-        assert((*symp)->addr == sym->addr);
+#ifndef NDEBUG
+        const struct vlc_plugin_symbol *oldsym = *symp;
+        assert(oldsym->addr == sym->addr);
+#endif
         free(sym);
     }
     return 0;
@@ -556,13 +567,14 @@ static int vlc_plugin_get_symbol(void *root, const char *name,
         return 0;
     }
 
-    const struct vlc_plugin_symbol **symp = tfind(&name, &root,
-                                                  vlc_plugin_symbol_compare);
+    const void **symp = tfind(&name, &root, vlc_plugin_symbol_compare);
 
     if (symp == NULL)
         return -1;
 
-    *addrp = (*symp)->addr;
+    const struct vlc_plugin_symbol *sym = *symp;
+
+    *addrp = sym->addr;
     return 0;
 }
 
@@ -576,14 +588,17 @@ int vlc_plugin_resolve(vlc_plugin_t *plugin, vlc_plugin_cb entry)
          module != NULL;
          module = module->next)
     {
+        void *deactivate;
+
         if (vlc_plugin_get_symbol(syms, module->activate_name,
                                   &module->pf_activate)
-         || vlc_plugin_get_symbol(syms, module->deactivate_name,
-                                  &module->pf_deactivate))
+         || vlc_plugin_get_symbol(syms, module->deactivate_name, &deactivate))
         {
             ret = -1;
             break;
         }
+
+        module->deactivate = deactivate;
     }
 
     vlc_plugin_free_symbols(syms);

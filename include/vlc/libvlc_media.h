@@ -133,11 +133,6 @@ typedef struct libvlc_media_stats_t
     /* Audio output */
     int         i_played_abuffers;
     int         i_lost_abuffers;
-
-    /* Stream output */
-    int         i_sent_packets;
-    int         i_sent_bytes;
-    float       f_send_bitrate;
 } libvlc_media_stats_t;
 
 typedef struct libvlc_audio_track_t
@@ -835,7 +830,8 @@ typedef enum libvlc_thumbnailer_seek_speed_t
  * \param timeout A timeout value in ms, or 0 to disable timeout
  *
  * \return A valid opaque request object, or NULL in case of failure.
- * It must be released by libvlc_media_thumbnail_cancel().
+ * It may be cancelled by libvlc_media_thumbnail_request_cancel().
+ * It must be released by libvlc_media_thumbnail_request_destroy().
  *
  * \version libvlc 4.0 or later
  *
@@ -865,7 +861,8 @@ libvlc_media_thumbnail_request_by_time( libvlc_media_t *md,
  * \param timeout A timeout value in ms, or 0 to disable timeout
  *
  * \return A valid opaque request object, or NULL in case of failure.
- * It must be released by libvlc_media_thumbnail_cancel().
+ * It may be cancelled by libvlc_media_thumbnail_request_cancel().
+ * It must be released by libvlc_media_thumbnail_request_destroy().
  *
  * \version libvlc 4.0 or later
  *
@@ -889,7 +886,17 @@ libvlc_media_thumbnail_request_by_pos( libvlc_media_t *md,
  * If the request is cancelled after its completion, the behavior is undefined.
  */
 LIBVLC_API void
-libvlc_media_thumbnail_cancel( libvlc_media_thumbnail_request_t *p_req );
+libvlc_media_thumbnail_request_cancel( libvlc_media_thumbnail_request_t *p_req );
+
+/**
+ * @brief libvlc_media_thumbnail_destroy destroys a thumbnail request
+ * @param p_req An opaque thumbnail request object.
+ *
+ * If the request has not completed or hasn't been cancelled yet, the behavior
+ * is undefined
+ */
+LIBVLC_API void
+libvlc_media_thumbnail_request_destroy( libvlc_media_thumbnail_request_t *p_req );
 
 /**
  * Add a slave to the current media.

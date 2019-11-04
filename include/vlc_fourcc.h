@@ -291,6 +291,8 @@
 #define VLC_CODEC_NV42            VLC_FOURCC('N','V','4','2')
 /* 2 planes Y/UV 4:2:0 10-bit */
 #define VLC_CODEC_P010            VLC_FOURCC('P','0','1','0')
+/* 2 planes Y/UV 4:2:0 16-bit */
+#define VLC_CODEC_P016            VLC_FOURCC('P','0','1','6')
 
 /* Packed YUV */
 
@@ -306,12 +308,16 @@
 #define VLC_CODEC_Y211            VLC_FOURCC('Y','2','1','1')
 /* Packed YUV 4:2:2, U:Y:V:Y, reverted */
 #define VLC_CODEC_CYUV            VLC_FOURCC('c','y','u','v')
-/* 10-bit 4:2:2 Component YCbCr */
+/* Planar 10-bit 4:2:2 Component YCbCr */
 #define VLC_CODEC_V210            VLC_FOURCC('v','2','1','0')
 /* I420 packed for RTP (RFC 4175) */
 #define VLC_CODEC_R420            VLC_FOURCC('r','4','2','0')
+/* 10-bit Packed YUV 4:2:2 V10:U10:Y10:A2 */
+#define VLC_CODEC_Y210            VLC_FOURCC('Y','2','1','0')
 /* Packed YUV 4:4:4 V:U:Y:A */
 #define VLC_CODEC_VUYA            VLC_FOURCC('V','U','Y','A')
+/* 10-bit Packed YUV 4:4:4 V10:U10:Y10:A2 */
+#define VLC_CODEC_Y410            VLC_FOURCC('Y','4','1','0')
 
 
 /* RGB */
@@ -401,6 +407,11 @@
 #define VLC_CODEC_D3D11_OPAQUE_RGBA     VLC_FOURCC('D','X','R','G')
 #define VLC_CODEC_D3D11_OPAQUE_BGRA     VLC_FOURCC('D','A','G','R')
 
+/* NVDEC opaque video format for use the NVDec API */
+#define VLC_CODEC_NVDEC_OPAQUE          VLC_FOURCC('N','V','D','8') /* 4:2:0  8 bpc */
+#define VLC_CODEC_NVDEC_OPAQUE_10B      VLC_FOURCC('N','V','D','0') /* 4:2:0 10 bpc */
+#define VLC_CODEC_NVDEC_OPAQUE_16B      VLC_FOURCC('N','V','D','6') /* 4:2:0 16 bpc */
+
 /* CVPixelBuffer opaque buffer type */
 #define VLC_CODEC_CVPX_NV12       VLC_FOURCC('C','V','P','N')
 #define VLC_CODEC_CVPX_UYVY       VLC_FOURCC('C','V','P','Y')
@@ -437,6 +448,8 @@
 #define VLC_CODEC_A52                        VLC_FOURCC('a','5','2',' ')
 #define VLC_CODEC_EAC3                       VLC_FOURCC('e','a','c','3')
 #define VLC_CODEC_DTS                        VLC_FOURCC('d','t','s',' ')
+/* Only used by outputs and filters */
+#define VLC_CODEC_DTSHD                      VLC_FOURCC('d','t','s','h')
 #define VLC_CODEC_WMA1                       VLC_FOURCC('W','M','A','1')
 #define VLC_CODEC_WMA2                       VLC_FOURCC('W','M','A','2')
 #define VLC_CODEC_WMAP                       VLC_FOURCC('W','M','A','P')

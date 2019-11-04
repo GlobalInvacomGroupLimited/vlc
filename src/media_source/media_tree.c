@@ -168,6 +168,27 @@ media_subtree_changed(input_item_t *media, input_item_node_t *node,
     vlc_media_tree_Unlock(tree);
 }
 
+static void
+media_subtree_preparse_ended(input_item_t *media,
+                             enum input_item_preparse_status status,
+                             void *user_data)
+{
+    vlc_media_tree_t *tree = user_data;
+
+    vlc_media_tree_Lock(tree);
+    input_item_node_t *subtree_root;
+    /* TODO retrieve the node without traversing the tree */
+    bool found = vlc_media_tree_FindNodeByMedia(&tree->root, media,
+                                                &subtree_root, NULL);
+    if (!found) {
+        /* the node probably failed to be allocated */
+        vlc_media_tree_Unlock(tree);
+        return;
+    }
+    vlc_media_tree_Notify(tree, on_preparse_end, subtree_root, status);
+    vlc_media_tree_Unlock(tree);
+}
+
 static inline void
 vlc_media_tree_DestroyRootNode(vlc_media_tree_t *tree)
 {
@@ -316,6 +337,7 @@ vlc_media_tree_Remove(vlc_media_tree_t *tree, input_item_t *media)
 
 static const input_preparser_callbacks_t input_preparser_callbacks = {
     .on_subtree_added = media_subtree_changed,
+    .on_preparse_ended = media_subtree_preparse_ended
 };
 
 void
@@ -329,8 +351,8 @@ vlc_media_tree_Preparse(vlc_media_tree_t *tree, libvlc_int_t *libvlc,
     VLC_UNUSED(input_preparser_callbacks);
 #else
     media->i_preparse_depth = 1;
-    vlc_MetadataRequest(libvlc, media, META_REQUEST_OPTION_SCOPE_LOCAL |
-                        META_REQUEST_OPTION_SCOPE_NETWORK,
-                        &input_preparser_callbacks, tree, -1, NULL);
+    vlc_MetadataRequest(libvlc, media, META_REQUEST_OPTION_SCOPE_ANY |
+                        META_REQUEST_OPTION_DO_INTERACT,
+                        &input_preparser_callbacks, tree, 0, NULL);
 #endif
 }

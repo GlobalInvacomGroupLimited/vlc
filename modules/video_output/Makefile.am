@@ -127,12 +127,6 @@ libvk_plugin_la_SOURCES = $(VULKAN_COMMONSOURCES) video_output/vulkan/display.c
 libvk_plugin_la_CFLAGS = $(AM_CFLAGS) $(VULKAN_COMMONCFLAGS)
 libvk_plugin_la_LIBADD = $(VULKAN_COMMONLIBS)
 
-libvk_x11_plugin_la_SOURCES = $(VULKAN_COMMONSOURCES) video_output/vulkan/surface.c \
-			      video_output/vulkan/platform_xcb.c
-libvk_x11_plugin_la_CFLAGS = $(AM_CFLAGS) $(XCB_CFLAGS) $(VULKAN_COMMONCFLAGS) \
-			     -DVK_USE_PLATFORM_XCB_KHR -DPLATFORM_NAME=X11
-libvk_x11_plugin_la_LIBADD = $(VULKAN_COMMONLIBS) $(XCB_LIBS)
-
 libvk_win32_plugin_la_SOURCES = $(VULKAN_COMMONSOURCES) video_output/vulkan/surface.c \
 				video_output/vulkan/platform_win32.c
 libvk_win32_plugin_la_CFLAGS = $(AM_CFLAGS) $(VULKAN_COMMONCFLAGS) \
@@ -147,9 +141,6 @@ libvk_android_plugin_la_LIBADD = $(VULKAN_COMMONLIBS)
 
 if HAVE_VULKAN
 vout_LTLIBRARIES += libvk_plugin.la
-if HAVE_XCB
-vout_LTLIBRARIES += libvk_x11_plugin.la
-endif
 if HAVE_WIN32_DESKTOP
 vout_LTLIBRARIES += libvk_win32_plugin.la
 endif
@@ -158,150 +149,12 @@ vout_LTLIBRARIES += libvk_android_plugin.la
 endif
 endif
 
-### XCB ###
-libvlc_xcb_events_la_SOURCES = \
-	video_output/xcb/events.c video_output/xcb/events.h
-libvlc_xcb_events_la_CFLAGS = $(AM_CFLAGS) $(XCB_CFLAGS)
-libvlc_xcb_events_la_LDFLAGS = \
-	-no-undefined \
-	-export-symbols-regex ^vlc_xcb_ \
-	-version-info 0:0:0
-libvlc_xcb_events_la_LIBADD = $(XCB_LIBS) $(LTLIBVLCCORE)
-
-libxcb_x11_plugin_la_SOURCES = \
-	video_output/xcb/pictures.c video_output/xcb/pictures.h \
-	video_output/xcb/x11.c
-libxcb_x11_plugin_la_CFLAGS = $(AM_CFLAGS) \
-	$(XCB_CFLAGS) $(XCB_SHM_CFLAGS)
-libxcb_x11_plugin_la_LIBADD = libvlc_xcb_events.la \
-	$(XCB_LIBS) $(XCB_SHM_LIBS)
-
-libxcb_render_plugin_la_SOURCES = \
-	video_output/xcb/pictures.c video_output/xcb/pictures.h \
-	video_output/xcb/render.c
-libxcb_render_plugin_la_CFLAGS = $(AM_CFLAGS) \
-	$(XCB_CFLAGS) $(XCB_SHM_CFLAGS) $(XCB_RENDER_CFLAGS)
-libxcb_render_plugin_la_LIBADD = libvlc_xcb_events.la \
-	$(XCB_LIBS) $(XCB_SHM_LIBS) $(XCB_RENDER_LIBS) $(LIBM)
-
-libxcb_window_plugin_la_SOURCES = video_output/xcb/window.c
-libxcb_window_plugin_la_CFLAGS = $(AM_CFLAGS) \
-	$(CFLAGS_xcb_window) \
-	$(XPROTO_CFLAGS) $(XCB_CFLAGS) \
-	$(XCB_XKB_CFLAGS) $(XKBCOMMON_X11_CFLAGS)
-libxcb_window_plugin_la_LIBADD = $(XPROTO_LIBS) $(XCB_LIBS) \
-	$(XCB_XKB_LIBS) $(XKBCOMMON_X11_LIBS)
-
-libegl_x11_plugin_la_SOURCES = video_output/opengl/egl.c
-libegl_x11_plugin_la_CPPFLAGS = $(AM_CPPFLAGS) -DUSE_PLATFORM_X11=1
-libegl_x11_plugin_la_CFLAGS = $(AM_CFLAGS) $(EGL_CFLAGS)
-libegl_x11_plugin_la_LIBADD = $(EGL_LIBS) $(X_LIBS) $(X_PRE_LIBS) -lX11
-
-libglx_plugin_la_SOURCES = video_output/glx.c
-libglx_plugin_la_CFLAGS = $(AM_CFLAGS) $(GL_CFLAGS)
-libglx_plugin_la_LIBADD = $(GL_LIBS) $(X_LIBS) $(X_PRE_LIBS) -lX11
-
-if HAVE_XCB
-pkglib_LTLIBRARIES += libvlc_xcb_events.la
-vout_LTLIBRARIES += libxcb_x11_plugin.la libxcb_render_plugin.la libxcb_window_plugin.la
-if HAVE_XKBCOMMON_X11
-libxcb_window_plugin_la_SOURCES += \
-	video_output/xcb/keysym.h video_output/xcb/xcb_keysym.h \
-	video_output/xcb/vlc_xkb.h video_output/xcb/xkb.c
-libxcb_window_plugin_la_CFLAGS += -DHAVE_XKBCOMMON
-endif
-if HAVE_EGL
-vout_LTLIBRARIES += libegl_x11_plugin.la
-endif
-if HAVE_GL
-vout_LTLIBRARIES += libglx_plugin.la
-endif
-endif
+### X11 ###
+include video_output/xcb/Makefile.am
 
 
 ### Wayland ###
-libwl_shm_plugin_la_SOURCES = video_output/wayland/shm.c
-nodist_libwl_shm_plugin_la_SOURCES = \
-	video_output/wayland/viewporter-client-protocol.h \
-	video_output/wayland/viewporter-protocol.c
-libwl_shm_plugin_la_CPPFLAGS = $(AM_CPPFLAGS) \
-	-I$(builddir)/video_output/wayland
-libwl_shm_plugin_la_CFLAGS = $(WAYLAND_CLIENT_CFLAGS)
-libwl_shm_plugin_la_LIBADD = $(WAYLAND_CLIENT_LIBS)
-CLEANFILES += $(nodist_libwl_shm_plugin_la_SOURCES)
-
-video_output/wayland/viewporter-client-protocol.h: \
-		$(WAYLAND_PROTOCOLS)/stable/viewporter/viewporter.xml
-	$(AM_V_GEN)$(WAYLAND_SCANNER) client-header $< $@
-
-video_output/wayland/viewporter-protocol.c: \
-		$(WAYLAND_PROTOCOLS)/stable/viewporter/viewporter.xml
-	$(AM_V_GEN)$(WAYLAND_SCANNER) private-code $< $@
-
-libwl_shell_plugin_la_SOURCES = $(libxdg_shell_plugin_la_SOURCES)
-libwl_shell_plugin_la_CPPFLAGS = $(AM_CPPFLAGS) \
-	-I$(builddir)/video_output/wayland
-libwl_shell_plugin_la_CFLAGS = $(libxdg_shell_plugin_la_CFLAGS)
-libwl_shell_plugin_la_LIBADD = $(libxdg_shell_plugin_la_LIBADD)
-
-libxdg_shell_plugin_la_SOURCES = \
-	video_output/wayland/output.h video_output/wayland/output.c \
-	video_output/wayland/input.h video_output/wayland/input.c \
-	video_output/xcb/vlc_xkb.h video_output/xcb/xkb.c \
-	video_output/wayland/xdg-shell.c
-nodist_libxdg_shell_plugin_la_SOURCES = \
-	video_output/wayland/xdg-shell-client-protocol.h \
-	video_output/wayland/xdg-shell-protocol.c \
-	video_output/wayland/xdg-decoration-client-protocol.h \
-	video_output/wayland/xdg-decoration-protocol.c
-libxdg_shell_plugin_la_CPPFLAGS = $(AM_CPPFLAGS) -DXDG_SHELL \
-	-I$(builddir)/video_output/wayland
-libxdg_shell_plugin_la_CFLAGS = \
-	$(WAYLAND_CLIENT_CFLAGS) $(WAYLAND_CURSOR_CFLAGS) \
-	$(XKBCOMMON_CFLAGS)
-libxdg_shell_plugin_la_LIBADD = \
-	$(WAYLAND_CLIENT_LIBS) $(WAYLAND_CURSOR_LIBS) \
-	$(XKBCOMMON_LIBS)
-if HAVE_XKBCOMMON
-libwl_shell_plugin_la_CPPFLAGS += -DHAVE_XKBCOMMON
-libxdg_shell_plugin_la_CPPFLAGS += -DHAVE_XKBCOMMON
-endif
-
-video_output/wayland/xdg-shell-client-protocol.h: \
-		$(WAYLAND_PROTOCOLS)/stable/xdg-shell/xdg-shell.xml \
-		video_output/Makefile.am
-	$(AM_V_GEN)$(WAYLAND_SCANNER) client-header $< $@
-
-video_output/wayland/xdg-shell-protocol.c: \
-		$(WAYLAND_PROTOCOLS)/stable/xdg-shell/xdg-shell.xml \
-		video_output/Makefile.am
-	$(AM_V_GEN)$(WAYLAND_SCANNER) private-code $< $@
-
-video_output/wayland/xdg-decoration-client-protocol.h: \
-		$(WAYLAND_PROTOCOLS)/unstable/xdg-decoration/xdg-decoration-unstable-v1.xml \
-		video_output/Makefile.am
-	$(AM_V_GEN)$(WAYLAND_SCANNER) client-header $< $@
-
-video_output/wayland/xdg-decoration-protocol.c: \
-		$(WAYLAND_PROTOCOLS)/unstable/xdg-decoration/xdg-decoration-unstable-v1.xml \
-		video_output/Makefile.am
-	$(AM_V_GEN)$(WAYLAND_SCANNER) private-code $< $@
-
-libegl_wl_plugin_la_SOURCES = video_output/opengl/egl.c
-libegl_wl_plugin_la_CPPFLAGS = $(AM_CPPFLAGS) -DUSE_PLATFORM_WAYLAND=1
-libegl_wl_plugin_la_CFLAGS = $(AM_CFLAGS) $(EGL_CFLAGS) $(WAYLAND_EGL_CFLAGS)
-libegl_wl_plugin_la_LIBADD = $(EGL_LIBS) $(WAYLAND_EGL_LIBS)
-
-if HAVE_WAYLAND
-BUILT_SOURCES += $(nodist_libwl_shm_plugin_la_SOURCES)
-vout_LTLIBRARIES += libwl_shm_plugin.la
-vout_LTLIBRARIES += libwl_shell_plugin.la
-BUILT_SOURCES += $(nodist_libxdg_shell_plugin_la_SOURCES)
-vout_LTLIBRARIES += libxdg_shell_plugin.la
-if HAVE_EGL
-vout_LTLIBRARIES += libegl_wl_plugin.la
-endif
-endif
+include video_output/wayland/Makefile.am
 
 
 ### Win32 ###

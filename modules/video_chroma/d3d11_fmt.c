@@ -38,8 +38,17 @@
 
 #include "d3d11_fmt.h"
 
-typedef picture_sys_d3d11_t VA_PICSYS;
-#include "../codec/avcodec/va_surface.h"
+#define D3D11_PICCONTEXT_FROM_PICCTX(pic_ctx)  \
+    container_of((pic_ctx), struct d3d11_pic_context, s)
+
+picture_sys_d3d11_t *ActiveD3D11PictureSys(picture_t *pic)
+{
+    if (unlikely(pic->context == NULL))
+        return pic->p_sys;
+
+    struct d3d11_pic_context *pic_ctx = D3D11_PICCONTEXT_FROM_PICCTX(pic->context);
+    return &pic_ctx->picsys;
+}
 
 void AcquireD3D11PictureSys(picture_sys_d3d11_t *p_sys)
 {
@@ -51,8 +60,6 @@ void AcquireD3D11PictureSys(picture_sys_d3d11_t *p_sys)
     }
     if (p_sys->context)
         ID3D11DeviceContext_AddRef(p_sys->context);
-    if (p_sys->decoder)
-        ID3D11VideoDecoderOutputView_AddRef(p_sys->decoder);
     if (p_sys->processorInput)
         ID3D11VideoProcessorInputView_AddRef(p_sys->processorInput);
     if (p_sys->processorOutput)
@@ -69,8 +76,6 @@ void ReleaseD3D11PictureSys(picture_sys_d3d11_t *p_sys)
     }
     if (p_sys->context)
         ID3D11DeviceContext_Release(p_sys->context);
-    if (p_sys->decoder)
-        ID3D11VideoDecoderOutputView_Release(p_sys->decoder);
     if (p_sys->processorInput)
         ID3D11VideoProcessorInputView_Release(p_sys->processorInput);
     if (p_sys->processorOutput)
@@ -412,33 +417,6 @@ bool isXboxHardware(ID3D11Device *d3ddev)
     return result;
 }
 
-static bool isNvidiaHardware(ID3D11Device *d3ddev)
-{
-    IDXGIAdapter *p_adapter = D3D11DeviceAdapter(d3ddev);
-    if (!p_adapter)
-        return false;
-
-    DXGI_ADAPTER_DESC adapterDesc;
-    if (FAILED(IDXGIAdapter_GetDesc(p_adapter, &adapterDesc)))
-        adapterDesc.VendorId = 0;
-    IDXGIAdapter_Release(p_adapter);
-
-    return adapterDesc.VendorId == GPU_MANUFACTURER_NVIDIA;
-}
-
-bool CanUseVoutPool(d3d11_device_t *d3d_dev, UINT slices)
-{
-#if VLC_WINSTORE_APP
-    /* Phones and the Xbox are memory constrained, rely on the d3d11va pool
-     * which is always smaller, we still get direct rendering from the decoder */
-    return false;
-#else
-    /* NVIDIA cards crash when calling CreateVideoDecoderOutputView
-     * on more than 30 slices */
-    return slices <= 30 || !isNvidiaHardware(d3d_dev->d3ddevice);
-#endif
-}
-
 /**
  * Performs a check on each value of the WDDM version. Any value that is OK will
  * consider the driver valid (OR on each value)
@@ -600,10 +578,11 @@ const d3d_format_t *FindD3D11Format(vlc_object_t *o,
 #undef AllocateTextures
 int AllocateTextures( vlc_object_t *obj, d3d11_device_t *d3d_dev,
                       const d3d_format_t *cfg, const video_format_t *fmt,
-                      unsigned pool_size, ID3D11Texture2D *textures[] )
+                      unsigned pool_size, ID3D11Texture2D *textures[],
+                      plane_t out_planes[] )
 {
     plane_t planes[PICTURE_PLANE_MAX];
-    int plane, plane_count;
+    unsigned plane, plane_count;
     HRESULT hr;
     ID3D11Texture2D *slicedTexture = NULL;
     D3D11_TEXTURE2D_DESC texDesc;
@@ -639,18 +618,8 @@ int AllocateTextures( vlc_object_t *obj, d3d11_device_t *d3d_dev,
         assert(cfg->resourceFormat[1] == cfg->resourceFormat[0]);
         assert(cfg->resourceFormat[2] == cfg->resourceFormat[0]);
 
-        for( int i = 0; i < plane_count; i++ )
-        {
-            plane_t *p = &planes[i];
-
-            p->i_lines         = fmt->i_height * p_chroma_desc->p[i].h.num / p_chroma_desc->p[i].h.den;
-            p->i_visible_lines = fmt->i_visible_height * p_chroma_desc->p[i].h.num / p_chroma_desc->p[i].h.den;
-            p->i_pitch         = fmt->i_width * p_chroma_desc->p[i].w.num / p_chroma_desc->p[i].w.den * p_chroma_desc->pixel_size;
-            p->i_visible_pitch = fmt->i_visible_width * p_chroma_desc->p[i].w.num / p_chroma_desc->p[i].w.den * p_chroma_desc->pixel_size;
-            p->i_pixel_pitch   = p_chroma_desc->pixel_size;
-        }
     } else {
-        plane_count = 1;
+        plane_count = __MAX(1, p_chroma_desc->plane_count);
         texDesc.Format = cfg->formatTexture;
         texDesc.Height = fmt->i_height;
         texDesc.Width = fmt->i_width;
@@ -661,6 +630,16 @@ int AllocateTextures( vlc_object_t *obj, d3d11_device_t *d3d_dev,
             goto error;
         }
     }
+    for( unsigned i = 0; i < p_chroma_desc->plane_count; i++ )
+    {
+        plane_t *p = &planes[i];
+
+        p->i_lines         = fmt->i_height * p_chroma_desc->p[i].h.num / p_chroma_desc->p[i].h.den;
+        p->i_visible_lines = fmt->i_visible_height * p_chroma_desc->p[i].h.num / p_chroma_desc->p[i].h.den;
+        p->i_pitch         = fmt->i_width * p_chroma_desc->p[i].w.num / p_chroma_desc->p[i].w.den * p_chroma_desc->pixel_size;
+        p->i_visible_pitch = fmt->i_visible_width * p_chroma_desc->p[i].w.num / p_chroma_desc->p[i].w.den * p_chroma_desc->pixel_size;
+        p->i_pixel_pitch   = p_chroma_desc->pixel_size;
+    }
 
     for (unsigned picture_count = 0; picture_count < pool_size; picture_count++) {
         for (plane = 0; plane < plane_count; plane++)
@@ -669,8 +648,8 @@ int AllocateTextures( vlc_object_t *obj, d3d11_device_t *d3d_dev,
                 textures[picture_count * D3D11_MAX_SHADER_VIEW + plane] = slicedTexture;
                 ID3D11Texture2D_AddRef(slicedTexture);
             } else {
-                texDesc.Height = fmt->i_height * p_chroma_desc->p[plane].h.num / p_chroma_desc->p[plane].h.den;
-                texDesc.Width = fmt->i_width * p_chroma_desc->p[plane].w.num / p_chroma_desc->p[plane].w.den;
+                texDesc.Height = planes[plane].i_lines;
+                texDesc.Width  = planes[plane].i_pitch;
                 hr = ID3D11Device_CreateTexture2D( d3d_dev->d3ddevice, &texDesc, NULL, &textures[picture_count * D3D11_MAX_SHADER_VIEW + plane] );
                 if (FAILED(hr)) {
                     msg_Err(obj, "CreateTexture2D failed for the %d pool. (hr=0x%lX)", pool_size, hr);
@@ -678,6 +657,11 @@ int AllocateTextures( vlc_object_t *obj, d3d11_device_t *d3d_dev,
                 }
             }
         }
+        if (out_planes)
+            for (plane = 0; plane < p_chroma_desc->plane_count; plane++)
+            {
+                out_planes[plane] = planes[plane];
+            }
         for (; plane < D3D11_MAX_SHADER_VIEW; plane++) {
             if (!cfg->resourceFormat[plane])
                 textures[picture_count * D3D11_MAX_SHADER_VIEW + plane] = NULL;
@@ -778,4 +762,31 @@ void D3D11_Destroy(d3d11_handle_t *hd3d)
         FreeLibrary(hd3d->dxgidebug_dll);
 #endif
 #endif
+}
+
+static void ReleaseD3D11ContextPrivate(void *private)
+{
+    d3d11_video_context_t *octx = private;
+    ID3D11DeviceContext_Release(octx->device);
+}
+
+const struct vlc_video_context_operations d3d11_vctx_ops = {
+    ReleaseD3D11ContextPrivate,
+};
+
+void d3d11_pic_context_destroy(picture_context_t *ctx)
+{
+    struct d3d11_pic_context *pic_ctx = D3D11_PICCONTEXT_FROM_PICCTX(ctx);
+    ReleaseD3D11PictureSys(&pic_ctx->picsys);
+    free(pic_ctx);
+}
+
+picture_context_t *d3d11_pic_context_copy(picture_context_t *ctx)
+{
+    struct d3d11_pic_context *pic_ctx = calloc(1, sizeof(*pic_ctx));
+    if (unlikely(pic_ctx==NULL))
+        return NULL;
+    *pic_ctx = *D3D11_PICCONTEXT_FROM_PICCTX(ctx);
+    AcquireD3D11PictureSys(&pic_ctx->picsys);
+    return &pic_ctx->s;
 }

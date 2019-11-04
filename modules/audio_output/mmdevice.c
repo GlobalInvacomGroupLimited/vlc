@@ -141,11 +141,10 @@ static void Play(audio_output_t *aout, block_t *block, vlc_tick_t date)
     HRESULT hr;
 
     EnterMTA();
-    hr = aout_stream_Play(sys->stream, block);
+    hr = aout_stream_Play(sys->stream, block, date);
     LeaveMTA();
 
     vlc_FromHR(aout, hr);
-    (void) date;
 }
 
 static void Pause(audio_output_t *aout, bool paused, vlc_tick_t date)
@@ -1120,8 +1119,6 @@ static int Start(audio_output_t *aout, audio_sample_format_t *restrict fmt)
             case MM_PASSTHROUGH_ENABLED:
                 if (b_hdmi)
                     return -1;
-                else if (fmt->i_format == VLC_CODEC_DTS)
-                    var_SetBool(aout, "dtshd", false );
                 /* falltrough */
             case MM_PASSTHROUGH_ENABLED_HD:
                 break;

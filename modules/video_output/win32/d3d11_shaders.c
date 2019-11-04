@@ -377,10 +377,10 @@ HRESULT D3D11_CompilePixelShader(vlc_object_t *o, d3d11_handle_t *hd3d, bool leg
             break;
         case DXGI_FORMAT_AYUV:
             psz_sampler[0] =
-                    "sample.x  = shaderTexture[0].Sample(SampleType, coords).z;\n"
-                    "sample.y  = shaderTexture[0].Sample(SampleType, coords).y;\n"
-                    "sample.z  = shaderTexture[0].Sample(SampleType, coords).x;\n"
-                    "sample.a  = shaderTexture[0].Sample(SampleType, coords).a;";
+                    "sample.x  = shaderTexture[0].Sample(samplerState, coords).z;\n"
+                    "sample.y  = shaderTexture[0].Sample(samplerState, coords).y;\n"
+                    "sample.z  = shaderTexture[0].Sample(samplerState, coords).x;\n"
+                    "sample.a  = shaderTexture[0].Sample(samplerState, coords).a;";
             break;
         case DXGI_FORMAT_R8G8B8A8_UNORM:
         case DXGI_FORMAT_B8G8R8A8_UNORM:
@@ -396,9 +396,10 @@ HRESULT D3D11_CompilePixelShader(vlc_object_t *o, d3d11_handle_t *hd3d, bool leg
             {
             case VLC_CODEC_I420_10L:
                 psz_sampler[0] =
-                       "sample.x  = shaderTexture[0].Sample(samplerState, coords).x * 64;\n"
-                       "sample.y  = shaderTexture[1].Sample(samplerState, coords).x * 64;\n"
-                       "sample.z  = shaderTexture[2].Sample(samplerState, coords).x * 64;\n"
+                       "float3 coords_2 = float3(coords.x/2, coords.y, coords.z);\n"
+                       "sample.x  = shaderTexture[0].Sample(samplerState, coords_2).x * 64;\n"
+                       "sample.y  = shaderTexture[1].Sample(samplerState, coords_2).x * 64;\n"
+                       "sample.z  = shaderTexture[2].Sample(samplerState, coords_2).x * 64;\n"
                        "sample.a  = 1;";
                 break;
             case VLC_CODEC_I420:

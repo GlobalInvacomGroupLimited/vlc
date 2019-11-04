@@ -37,18 +37,32 @@ Utils.NavigableFocusScope {
     property var sortModel
     property var contentModel
 
-    function loadIndex(index) {
-        stackView.replace(root.pageModel[index].component)
-        history.push(["mc", "music", root.pageModel[index].name], History.Stay)
-        stackView.focus = true
+    onViewChanged: loadView()
+    onViewProperties: loadView()
+    Component.onCompleted: loadView()
+
+    function loadView() {
+        var found = stackView.loadView(root.pageModel, view, viewProperties)
+        if (!found)
+            stackView.replace(root.pageModel[0].component)
         sortModel = stackView.currentItem.sortModel
         contentModel = stackView.currentItem.model
     }
 
-    Component { id: albumComp; MusicAlbumsDisplay{ } }
-    Component { id: artistComp; MusicArtistsDisplay{ } }
-    Component { id: genresComp; MusicGenresDisplay{ } }
-    Component { id: tracksComp; MusicTrackListDisplay{ } }
+    //reset view
+    function loadDefaultView() {
+        root.view = "albums"
+        root.viewProperties= ({})
+    }
+
+    function loadIndex(index) {
+        history.push(["mc", "music", root.pageModel[index].name], History.Go)
+    }
+
+    Component { id: albumComp; MusicAlbumsDisplay{ navigationParent: root } }
+    Component { id: artistComp; MusicArtistsDisplay{ navigationParent: root } }
+    Component { id: genresComp; MusicGenresDisplay{ navigationParent: root } }
+    Component { id: tracksComp; MusicTrackListDisplay{  navigationParent: root } }
 
     readonly property var pageModel: [{
             displayText: qsTr("Albums"),
@@ -73,9 +87,9 @@ Utils.NavigableFocusScope {
         Component.onCompleted: {
             pageModel.forEach(function(e) {
                 append({
-                    displayText: e.displayText,
-                    name: e.name,
-                })
+                           displayText: e.displayText,
+                           name: e.name,
+                       })
             })
         }
     }
@@ -92,23 +106,10 @@ Utils.NavigableFocusScope {
             Layout.margins: VLCStyle.margin_normal
             focus: true
 
-            Component.onCompleted: {
-                var found = stackView.loadView(root.pageModel, view, viewProperties)
+            onCurrentItemChanged: {
                 sortModel = stackView.currentItem.sortModel
                 contentModel = stackView.currentItem.model
-                if (!found)
-                    replace(pageModel[0].component)
             }
-        }
-
-        Connections {
-            target: stackView.currentItem
-            ignoreUnknownSignals: true
-            onActionLeft:   root.actionLeft(index)
-            onActionRight:  root.actionRight(index)
-            onActionDown:   root.actionDown(index)
-            onActionUp:     root.actionUp(index)
-            onActionCancel: root.actionCancel(index)
         }
     }
 }

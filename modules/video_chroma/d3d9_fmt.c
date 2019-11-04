@@ -28,8 +28,17 @@
 #include <initguid.h>
 #include "d3d9_fmt.h"
 
-typedef picture_sys_d3d9_t VA_PICSYS;
-#include "../codec/avcodec/va_surface.h"
+#define D3D9_PICCONTEXT_FROM_PICCTX(pic_ctx)  \
+    container_of((pic_ctx), struct d3d9_pic_context, s)
+
+picture_sys_d3d9_t *ActiveD3D9PictureSys(picture_t *pic)
+{
+    if (unlikely(pic->context == NULL))
+        return pic->p_sys;
+
+    struct d3d9_pic_context *pic_ctx = D3D9_PICCONTEXT_FROM_PICCTX(pic->context);
+    return &pic_ctx->picsys;
+}
 
 #undef D3D9_CreateDevice
 HRESULT D3D9_CreateDevice(vlc_object_t *o, d3d9_handle_t *hd3d, int AdapterToUse,
@@ -275,4 +284,31 @@ void D3D9_CloneExternal(d3d9_handle_t *hd3d, IDirect3D9 *dev)
     hd3d->use_ex = SUCCEEDED(IDirect3D9_QueryInterface(dev, &IID_IDirect3D9Ex, &pv));
     if (hd3d->use_ex && pv)
         IDirect3D9Ex_Release((IDirect3D9Ex*) pv);
+}
+
+static void ReleaseD3D9ContextPrivate(void *private)
+{
+    d3d9_video_context_t *octx = private;
+    IDirect3DDevice9_Release(octx->dev);
+}
+
+const struct vlc_video_context_operations d3d9_vctx_ops = {
+    ReleaseD3D9ContextPrivate,
+};
+
+void d3d9_pic_context_destroy(picture_context_t *ctx)
+{
+    struct d3d9_pic_context *pic_ctx = D3D9_PICCONTEXT_FROM_PICCTX(ctx);
+    ReleaseD3D9PictureSys(&pic_ctx->picsys);
+    free(pic_ctx);
+}
+
+picture_context_t *d3d9_pic_context_copy(picture_context_t *ctx)
+{
+    struct d3d9_pic_context *pic_ctx = calloc(1, sizeof(*pic_ctx));
+    if (unlikely(pic_ctx==NULL))
+        return NULL;
+    *pic_ctx = *D3D9_PICCONTEXT_FROM_PICCTX(ctx);
+    AcquireD3D9PictureSys(&pic_ctx->picsys);
+    return &pic_ctx->s;
 }

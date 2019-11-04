@@ -48,9 +48,13 @@
  */
 typedef struct {
     vout_thread_t        *vout;
+    const video_format_t *fmt; // for the initial window dimensions
+} vout_device_configuration_t;
+
+typedef struct {
+    vout_thread_t        *vout;
     vlc_clock_t          *clock;
     const video_format_t *fmt;
-    unsigned             dpb_size;
     vlc_mouse_event      mouse_event;
     void                 *mouse_opaque;
 } vout_configuration_t;
@@ -103,7 +107,6 @@ struct vout_thread_sys_t
             };
         } crop;
     } source;
-    unsigned        dpb_size;
 
     /* Snapshot interface */
     struct vout_snapshot *snapshot;
@@ -115,7 +118,7 @@ struct vout_thread_sys_t
     vlc_mutex_t     spu_lock;
     spu_t           *spu;
     vlc_fourcc_t    spu_blend_chroma;
-    filter_t        *spu_blend;
+    vlc_blender_t   *spu_blend;
 
     /* Thread & synchronization */
     vlc_thread_t    thread;
@@ -125,7 +128,7 @@ struct vout_thread_sys_t
         vlc_tick_t  date;
         vlc_tick_t  timestamp;
         bool        is_interlaced;
-        picture_t   *decoded;
+        picture_t   *decoded; // decoded picture before passed through chain_static
         picture_t   *current;
         picture_t   *next;
     } displayed;
@@ -173,6 +176,7 @@ struct vout_thread_sys_t
     /* Video output window */
     bool            window_enabled;
     vlc_mutex_t     window_lock;
+    vlc_decoder_device *dec_device;
 
     /* Video output display */
     vout_display_cfg_t display_cfg;
@@ -181,7 +185,6 @@ struct vout_thread_sys_t
 
     picture_pool_t  *private_pool;
     picture_pool_t  *display_pool;
-    picture_pool_t  *decoder_pool;
     picture_fifo_t  *decoder_fifo;
     vout_chrono_t   render;           /**< picture render time estimator */
 
@@ -196,6 +199,14 @@ vout_thread_t *vout_Create(vlc_object_t *obj) VLC_USED;
 vout_thread_t *vout_CreateDummy(vlc_object_t *obj) VLC_USED;
 
 /**
+ * Setup the vout for the given configuration and get an associated decoder device.
+ *
+ * \param cfg the video configuration requested.
+ * \return pointer to a decoder device reference to use with the vout or NULL
+ */
+vlc_decoder_device *vout_GetDevice(const vout_device_configuration_t *cfg);
+
+/**
  * Returns a suitable vout or release the given one.
  *
  * If cfg->fmt is non NULL and valid, a vout will be returned, reusing cfg->vout
@@ -206,10 +217,11 @@ vout_thread_t *vout_CreateDummy(vlc_object_t *obj) VLC_USED;
  *
  * \param cfg the video configuration requested.
  * \param input used to get attachments for spu filters
+ * \param vctx pointer to the video context to use with the vout or NULL
  * \retval 0 on success
  * \retval -1 on error
  */
-int vout_Request(const vout_configuration_t *cfg, input_thread_t *input);
+int vout_Request(const vout_configuration_t *cfg, vlc_video_context *vctx, input_thread_t *input);
 
 /**
  * Disables a vout.
@@ -226,11 +238,19 @@ void vout_StopDisplay(vout_thread_t *);
 /**
  * Destroys a vout.
  *
- * This function closes and releases a vout created by vout_Request().
+ * This function closes and releases a vout created by vout_Create().
  *
  * \param p_vout the vout to close
  */
 void vout_Close( vout_thread_t *p_vout );
+
+/**
+ * Set the new source format for a started vout
+ *
+ * \retval 0 on success
+ * \retval -1 on error, the vout needs to be restarted to handle the format
+ */
+int vout_ChangeSource( vout_thread_t *p_vout, const video_format_t *fmt );
 
 /* TODO to move them to vlc_vout.h */
 void vout_ChangeFullscreen(vout_thread_t *, const char *id);
@@ -257,7 +277,7 @@ void vout_IntfDeinit(vlc_object_t *);
 
 /* */
 vout_display_t *vout_OpenWrapper(vout_thread_t *, const char *,
-                     const vout_display_cfg_t *);
+                     const vout_display_cfg_t *, vlc_video_context *);
 void vout_CloseWrapper(vout_thread_t *, vout_display_t *vd);
 
 /* */
@@ -312,12 +332,6 @@ void vout_MouseState(vout_thread_t *, const vlc_mouse_t *);
  */
 void vout_GetResetStatistic( vout_thread_t *p_vout, unsigned *pi_displayed,
                              unsigned *pi_lost );
-
-/*
- * Cancel the vout, if cancel is true, it won't return any pictures after this
- * call.
- */
-void vout_Cancel( vout_thread_t *p_vout, bool b_canceled );
 
 /**
  * This function will force to display the next picture while paused

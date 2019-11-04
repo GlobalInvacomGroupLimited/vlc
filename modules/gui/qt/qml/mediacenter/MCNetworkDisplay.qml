@@ -18,6 +18,7 @@
 import QtQuick 2.11
 import QtQuick.Controls 2.4
 import QtQml.Models 2.2
+import QtQml 2.11
 
 import org.videolan.vlc 0.1
 import org.videolan.medialib 0.1
@@ -28,95 +29,38 @@ import "qrc:///style/"
 Utils.NavigableFocusScope {
     id: root
 
-    property var tree
+    property var extraLocalActions: undefined
 
-    Utils.SelectableDelegateModel {
-        id: delegateModel
+    property var tree: undefined
+    onTreeChanged:  loadView()
+    Component.onCompleted: loadView()
 
-        model:  MLNetworkModel {
-            Component.onCompleted: {
-                setContext(mainctx, root.tree)
-            }
-        }
+    //reset view
+    function loadDefaultView() {
+        root.tree = undefined
+    }
 
-        delegate: Package {
-            id: element
-            Loader {
-                id: delegateLoader
-                focus: true
-                Package.name: "list"
-                source: model.type == MLNetworkModel.TYPE_FILE ?
-                            "qrc:///mediacenter/NetworkFileDisplay.qml" :
-                            "qrc:///mediacenter/NetworkDriveDisplay.qml";
-            }
-            Connections {
-                target: delegateLoader.item
-                onActionLeft: root.actionLeft(0)
-                onActionRight: root.actionRight(0)
-            }
-
-        }
-
-        function actionAtIndex(index) {
-            if ( delegateModel.selectedGroup.count > 1 ) {
-                var list = []
-                for (var i = 0; i < delegateModel.selectedGroup.count; i++) {
-                    var type = delegateModel.selectedGroup.get(i).model.type;
-                    var mrl = delegateModel.selectedGroup.get(i).model.mrl;
-                    if (type == MLNetworkModel.TYPE_FILE)
-                        list.push(mrl)
-                }
-                medialib.addAndPlay( list )
-            } else {
-                if (delegateModel.items.get(index).model.type != MLNetworkModel.TYPE_FILE)  {
-                    history.push(["mc", "network", { tree: delegateModel.items.get(index).model.tree }], History.Go);
-                } else {
-                    medialib.addAndPlay( delegateModel.items.get(index).model.mrl );
-                }
-            }
+    function loadView() {
+        var page = "";
+        if (root.tree === undefined)
+            page ="qrc:///mediacenter/MCNetworkHomeDisplay.qml"
+        else
+            page = "qrc:///mediacenter/MCNetworkBrowseDisplay.qml"
+        view.replace(page)
+        if (root.tree) {
+            view.currentItem.tree = root.tree
         }
     }
 
-    /*
-     *define the intial position/selection
-     * This is done on activeFocus rather than Component.onCompleted because delegateModel.
-     * selectedGroup update itself after this event
-     */
-    onActiveFocusChanged: {
-        if (activeFocus && delegateModel.items.count > 0 && delegateModel.selectedGroup.count === 0) {
-            var initialIndex = 0
-            if (view.currentIndex !== -1)
-                initialIndex = view.currentIndex
-            delegateModel.items.get(initialIndex).inSelected = true
-            view.currentIndex = initialIndex
-        }
-    }
-
-    Utils.KeyNavigableListView {
+    Utils.StackViewExt {
         id: view
-        anchors.fill: parent
-        model: delegateModel.parts.list
-        modelCount: delegateModel.items.count
-
+        anchors.fill:parent
+        clip: true
         focus: true
-        spacing: VLCStyle.margin_xxxsmall
 
-        onSelectAll: delegateModel.selectAll()
-        onSelectionUpdated: delegateModel.updateSelection( keyModifiers, oldIndex, newIndex )
-        onActionAtIndex: delegateModel.actionAtIndex(index)
-
-        onActionLeft: root.actionLeft(index)
-        onActionRight: root.actionRight(index)
-        onActionDown: root.actionDown(index)
-        onActionUp: root.actionUp(index)
-        onActionCancel: root.actionCancel(index)
-    }
-
-    Label {
-        anchors.centerIn: parent
-        visible: delegateModel.items.count === 0
-        font.pixelSize: VLCStyle.fontHeight_xxlarge
-        color: root.activeFocus ? VLCStyle.colors.accent : VLCStyle.colors.text
-        text: qsTr("No network shares found")
+        onCurrentItemChanged: {
+            extraLocalActions = view.currentItem.extraLocalActions
+            view.currentItem.navigationParent = root
+        }
     }
 }

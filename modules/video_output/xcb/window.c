@@ -222,7 +222,9 @@ static xcb_cursor_t CursorCreate(xcb_connection_t *conn, xcb_window_t root)
 
 static int ProcessEvent(vout_window_t *wnd, xcb_generic_event_t *ev)
 {
+#ifdef HAVE_XKBCOMMON
     vout_window_sys_t *sys = wnd->sys;
+#endif
     int ret = 0;
 
     switch (ev->response_type & 0x7f)
@@ -859,7 +861,7 @@ static const struct vout_window_operations em_ops = {
 /**
  * Wrap an existing X11 window to embed the video.
  */
-static int EmOpen (vout_window_t *wnd, const vout_window_cfg_t *cfg)
+static int EmOpen (vout_window_t *wnd)
 {
     int ret = VLC_EGENERIC;
     xcb_window_t window = var_InheritInteger (wnd, "drawable-xid");
@@ -907,7 +909,6 @@ static int EmOpen (vout_window_t *wnd, const vout_window_cfg_t *cfg)
         goto error;
 
     wnd->ops = &em_ops;
-    (void) cfg;
     return VLC_SUCCESS;
 
 error:

@@ -87,13 +87,6 @@ static int vout_display_start(void *func, bool forced, va_list ap)
     return ret;
 }
 
-static void vout_display_stop(void *func, va_list ap)
-{
-    vout_display_close_cb deactivate = func;
-
-    deactivate(va_arg(ap, vout_display_t *));
-}
-
 /* */
 void vout_display_GetDefaultDisplaySize(unsigned *width, unsigned *height,
                                         const video_format_t *source,
@@ -290,16 +283,13 @@ typedef struct {
       * can be done and nothing will be displayed */
     filter_chain_t *converters;
 #ifdef _WIN32
-    atomic_bool reset_pictures;
+    bool reset_pictures; // set/read under the same lock as the control
 #endif
     picture_pool_t *pool;
-
-    /* temporary: must come from decoder module */
-    vlc_video_context video_context;
 } vout_display_priv_t;
 
 static const struct filter_video_callbacks vout_display_filter_cbs = {
-    .buffer_new = VideoBufferNew,
+    VideoBufferNew,
 };
 
 static int VoutDisplayCreateRender(vout_display_t *vd)
@@ -370,8 +360,7 @@ void vout_display_SendEventPicturesInvalid(vout_display_t *vd)
     vout_display_priv_t *osys = container_of(vd, vout_display_priv_t, display);
 
     msg_Err(vd, "picture buffers invalidated asynchronously");
-    assert(vd->info.has_pictures_invalid);
-    atomic_store_explicit(&osys->reset_pictures, true, memory_order_release);
+    osys->reset_pictures = true;
 #else
     (void) vd;
     vlc_assert_unreachable();
@@ -473,6 +462,10 @@ static void vout_display_Reset(vout_display_t *vd)
 {
     vout_display_priv_t *osys = container_of(vd, vout_display_priv_t, display);
 
+#ifdef _WIN32
+    osys->reset_pictures = false;
+#endif
+
     if (osys->converters != NULL) {
         filter_chain_Delete(osys->converters);
         osys->converters = NULL;
@@ -489,19 +482,14 @@ static void vout_display_Reset(vout_display_t *vd)
         msg_Err(vd, "Failed to adjust render format");
 }
 
-static void vout_display_CheckReset(vout_display_t *vd)
+static bool vout_display_CheckReset(vout_display_t *vd)
 {
 #ifdef _WIN32
     vout_display_priv_t *osys = container_of(vd, vout_display_priv_t, display);
 
-    if (unlikely(atomic_exchange_explicit(&osys->reset_pictures, false,
-                                          memory_order_relaxed))) {
-        atomic_thread_fence(memory_order_acquire);
-        vout_display_Reset(vd);
-    }
-#else
-    (void) vd;
+    return osys->reset_pictures;
 #endif
+    return false;
 }
 
 static int vout_UpdateSourceCrop(vout_display_t *vd)
@@ -627,10 +615,8 @@ void vout_UpdateDisplaySourceProperties(vout_display_t *vd, const video_format_t
         err2 = vout_UpdateSourceCrop(vd);
     }
 
-    if (err1 || err2)
+    if (err1 || err2 || vout_display_CheckReset(vd))
         vout_display_Reset(vd);
-
-    vout_display_CheckReset(vd);
 }
 
 void vout_display_SetSize(vout_display_t *vd, unsigned width, unsigned height)
@@ -639,9 +625,9 @@ void vout_display_SetSize(vout_display_t *vd, unsigned width, unsigned height)
 
     osys->cfg.display.width  = width;
     osys->cfg.display.height = height;
-    if (vout_display_Control(vd, VOUT_DISPLAY_CHANGE_DISPLAY_SIZE, &osys->cfg))
+    if (vout_display_Control(vd, VOUT_DISPLAY_CHANGE_DISPLAY_SIZE, &osys->cfg)
+        || vout_display_CheckReset(vd))
         vout_display_Reset(vd);
-    vout_display_CheckReset(vd);
 }
 
 void vout_SetDisplayFilled(vout_display_t *vd, bool is_filled)
@@ -653,9 +639,8 @@ void vout_SetDisplayFilled(vout_display_t *vd, bool is_filled)
 
     osys->cfg.is_display_filled = is_filled;
     if (vout_display_Control(vd, VOUT_DISPLAY_CHANGE_DISPLAY_FILLED,
-                             &osys->cfg))
+                             &osys->cfg) || vout_display_CheckReset(vd))
         vout_display_Reset(vd);
-    vout_display_CheckReset(vd);
 }
 
 void vout_SetDisplayZoom(vout_display_t *vd, unsigned num, unsigned den)
@@ -668,9 +653,9 @@ void vout_SetDisplayZoom(vout_display_t *vd, unsigned num, unsigned den)
 
     osys->cfg.zoom.num = num;
     osys->cfg.zoom.den = den;
-    if (vout_display_Control(vd, VOUT_DISPLAY_CHANGE_ZOOM, &osys->cfg))
+    if (vout_display_Control(vd, VOUT_DISPLAY_CHANGE_ZOOM, &osys->cfg) ||
+        vout_display_CheckReset(vd))
         vout_display_Reset(vd);
-    vout_display_CheckReset(vd);
 }
 
 void vout_SetDisplayAspect(vout_display_t *vd, unsigned dar_num, unsigned dar_den)
@@ -687,9 +672,9 @@ void vout_SetDisplayAspect(vout_display_t *vd, unsigned dar_num, unsigned dar_de
         sar_den = 0;
     }
 
-    if (vout_SetSourceAspect(vd, sar_num, sar_den))
+    if (vout_SetSourceAspect(vd, sar_num, sar_den) ||
+        vout_display_CheckReset(vd))
         vout_display_Reset(vd);
-    vout_display_CheckReset(vd);
 }
 
 void vout_SetDisplayCrop(vout_display_t *vd,
@@ -710,9 +695,8 @@ void vout_SetDisplayCrop(vout_display_t *vd,
         osys->crop.num    = crop_num;
         osys->crop.den    = crop_den;
 
-        if (vout_UpdateSourceCrop(vd))
+        if (vout_UpdateSourceCrop(vd)|| vout_display_CheckReset(vd))
             vout_display_Reset(vd);
-        vout_display_CheckReset(vd);
     }
 }
 
@@ -739,6 +723,7 @@ void vout_SetDisplayViewpoint(vout_display_t *vd,
 
 vout_display_t *vout_display_New(vlc_object_t *parent,
                                  const video_format_t *source,
+                                 vlc_video_context *vctx,
                                  const vout_display_cfg_t *cfg,
                                  const char *module,
                                  const vout_display_owner_t *owner)
@@ -753,7 +738,7 @@ vout_display_t *vout_display_New(vlc_object_t *parent,
                                        &osys->cfg.display.height,
                                        source, &osys->cfg);
 #ifdef _WIN32
-    atomic_init(&osys->reset_pictures, false);
+    osys->reset_pictures = false;
 #endif
     osys->pool = NULL;
 
@@ -774,19 +759,14 @@ vout_display_t *vout_display_New(vlc_object_t *parent,
     vd->prepare = NULL;
     vd->display = NULL;
     vd->control = NULL;
+    vd->close = NULL;
     vd->sys = NULL;
     if (owner)
         vd->owner = *owner;
 
-    osys->video_context.device = vlc_decoder_device_Create(osys->cfg.window);
-    vlc_video_context *video_context = osys->video_context.device ?
-        &osys->video_context : NULL;
-
-    vd->module = vlc_module_load(vd, "vout display", module,
-                                 module && *module != '\0',
-                                 vout_display_start, vd, &osys->cfg,
-                                 &vd->fmt, video_context);
-    if (vd->module == NULL)
+    if (vlc_module_load(vd, "vout display", module, module && *module != '\0',
+                        vout_display_start, vd, &osys->cfg, &vd->fmt,
+                        vctx) == NULL)
         goto error;
 
 #if defined(__OS2__)
@@ -802,18 +782,15 @@ vout_display_t *vout_display_New(vlc_object_t *parent,
 #endif
 
     if (VoutDisplayCreateRender(vd)) {
-        if (vd->module != NULL) {
-            vlc_module_unload(vd->module, vout_display_stop, vd);
-            vlc_objres_clear(VLC_OBJECT(vd));
-        }
+        if (vd->close != NULL)
+            vd->close(vd);
+        vlc_objres_clear(VLC_OBJECT(vd));
         video_format_Clean(&vd->fmt);
         goto error;
     }
     return vd;
 error:
     video_format_Clean(&vd->source);
-    if (osys->video_context.device)
-        vlc_decoder_device_Release(osys->video_context.device);
     vlc_object_delete(vd);
     return NULL;
 }
@@ -828,13 +805,9 @@ void vout_display_Delete(vout_display_t *vd)
     if (osys->pool != NULL)
         picture_pool_Release(osys->pool);
 
-    if (vd->module != NULL) {
-        vlc_module_unload(vd->module, vout_display_stop, vd);
-        vlc_objres_clear(VLC_OBJECT(vd));
-    }
-
-    if (osys->video_context.device)
-        vlc_decoder_device_Release(osys->video_context.device);
+    if (vd->close != NULL)
+        vd->close(vd);
+    vlc_objres_clear(VLC_OBJECT(vd));
 
     video_format_Clean(&vd->source);
     video_format_Clean(&vd->fmt);

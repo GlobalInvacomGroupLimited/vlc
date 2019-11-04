@@ -42,6 +42,7 @@
 #include <vlc_common.h>
 #include <vlc_plugin.h>
 #include <vlc_vout_display.h>
+#include <vlc_fs.h>
 
 #include <vlc/libvlc.h>
 #include <vlc/libvlc_picture.h>
@@ -55,9 +56,6 @@
 #include <d3dx9effect.h>
 #endif
 #include "../../video_chroma/d3d9_fmt.h"
-
-typedef picture_sys_d3d9_t VA_PICSYS;
-#include "../../codec/avcodec/va_surface.h"
 
 #include "common.h"
 #include "builtin_shaders.h"
@@ -111,7 +109,7 @@ vlc_module_begin ()
                  PIXEL_SHADER_FILE_TEXT, PIXEL_SHADER_FILE_LONGTEXT)
 
     add_shortcut("direct3d9", "direct3d")
-    set_callbacks_display(Open, Close, 280)
+    set_callback_display(Open, 280)
 
 #ifdef HAVE_GL
     add_submodule()
@@ -170,8 +168,6 @@ struct vout_display_sys_t
 
     /* outside rendering */
     void *outside_opaque;
-    libvlc_video_direct3d_device_setup_cb    setupDeviceCb;
-    libvlc_video_direct3d_device_cleanup_cb  cleanupDeviceCb;
     libvlc_video_direct3d_update_output_cb   updateOutputCb;
     libvlc_video_swap_cb                     swapCb;
     libvlc_video_direct3d_start_end_rendering_cb startEndRenderingCb;
@@ -845,7 +841,7 @@ static int Direct3D9CreateShaders(vout_display_t *vd)
             goto error;
         }
         /* Open file, find its size with fseek/ftell and read its content in a buffer. */
-        fs = fopen(filepath, "rb");
+        fs = vlc_fopen(filepath, "rb");
         if (!fs)
             goto error;
         int ret = fseek(fs, 0, SEEK_END);
@@ -884,7 +880,7 @@ error:
 /**
  * It creates the picture and scene resources.
  */
-static int Direct3D9CreateResources(vout_display_t *vd, video_format_t *fmt)
+static int Direct3D9CreateResources(vout_display_t *vd, const video_format_t *fmt)
 {
     vout_display_sys_t *sys = vd->sys;
 
@@ -933,7 +929,7 @@ static int Direct3D9CreateResources(vout_display_t *vd, video_format_t *fmt)
 /**
  * It reset the Direct3D9 device and its resources.
  */
-static int Direct3D9Reset(vout_display_t *vd, video_format_t *fmtp)
+static int Direct3D9Reset(vout_display_t *vd, const video_format_t *fmtp)
 {
     vout_display_sys_t *sys = vd->sys;
     d3d9_device_t *p_d3d9_dev = &sys->d3d_dev;
@@ -1274,7 +1270,7 @@ static void Prepare(vout_display_t *vd, picture_t *picture,
      * wrapper, we can't */
     IDirect3DSurface9 *surface;
 
-    picture_sys_d3d9_t *p_sys = picture->p_sys;
+    picture_sys_d3d9_t *p_sys = ActiveD3D9PictureSys(picture);
     surface = p_sys->surface;
     if ( !is_d3d9_opaque(picture->format.i_chroma) )
     {
@@ -1293,14 +1289,14 @@ static void Prepare(vout_display_t *vd, picture_t *picture,
     }
     else if (picture->context)
     {
-        const struct va_pic_context *pic_ctx = (struct va_pic_context*)picture->context;
-        if (pic_ctx->picsys.surface != surface)
+        const picture_sys_d3d9_t *picsys = ActiveD3D9PictureSys(picture);
+        if (picsys->surface != surface)
         {
             D3DSURFACE_DESC srcDesc, dstDesc;
-            IDirect3DSurface9_GetDesc(pic_ctx->picsys.surface, &srcDesc);
+            IDirect3DSurface9_GetDesc(picsys->surface, &srcDesc);
             IDirect3DSurface9_GetDesc(surface, &dstDesc);
             if ( srcDesc.Width == dstDesc.Width && srcDesc.Height == dstDesc.Height )
-                surface = pic_ctx->picsys.surface;
+                surface = picsys->surface;
             else
             {
                 HRESULT hr;
@@ -1310,7 +1306,7 @@ static void Prepare(vout_display_t *vd, picture_t *picture,
                 visibleSource.right = picture->format.i_visible_width;
                 visibleSource.bottom = picture->format.i_visible_height;
 
-                hr = IDirect3DDevice9_StretchRect( p_d3d9_dev->dev, pic_ctx->picsys.surface, &visibleSource, surface, &visibleSource, D3DTEXF_NONE);
+                hr = IDirect3DDevice9_StretchRect( p_d3d9_dev->dev, picsys->surface, &visibleSource, surface, &visibleSource, D3DTEXF_NONE);
                 if (FAILED(hr)) {
                     msg_Err(vd, "Failed to copy the hw surface to the decoder surface (hr=0x%lX)", hr );
                 }
@@ -1384,9 +1380,6 @@ static void Direct3D9Destroy(vout_display_sys_t *sys)
         FreeLibrary(sys->hxdll);
         sys->hxdll = NULL;
     }
-
-    if ( sys->cleanupDeviceCb )
-        sys->cleanupDeviceCb( sys->outside_opaque );
 }
 
 /**
@@ -1514,7 +1507,7 @@ static int Direct3D9Open(vout_display_t *vd, video_format_t *fmt)
     /* Change the window title bar text */
     vout_window_SetTitle(sys->area.vdcfg.window, VOUT_TITLE " (Direct3D9 output)");
 
-    msg_Dbg(vd, "Direct3D9 device adapter successfully initialized");
+    msg_Dbg(vd, "Direct3D9 display adapter successfully initialized");
     return VLC_SUCCESS;
 
 error:
@@ -1540,17 +1533,16 @@ static int Control(vout_display_t *vd, int query, va_list args)
     switch (query) {
     case VOUT_DISPLAY_RESET_PICTURES:
     {
-        const vout_display_cfg_t *cfg = va_arg(args, const vout_display_cfg_t *);
-        video_format_t *fmt = va_arg(args, video_format_t *);
         /* FIXME what to do here in case of failure */
         if (sys->reset_device) {
+            va_arg(args, const vout_display_cfg_t *);
+            const video_format_t *fmt = va_arg(args, video_format_t *);
             if (Direct3D9Reset(vd, fmt)) {
                 msg_Err(vd, "Failed to reset device");
                 return VLC_EGENERIC;
             }
             sys->reset_device = false;
         }
-        (void) cfg;
         return VLC_SUCCESS;
     }
     default:
@@ -1596,28 +1588,6 @@ static int FindShadersCallback(const char *name, char ***values, char ***descs)
 }
 
 VLC_CONFIG_STRING_ENUM(FindShadersCallback)
-
-static bool LocalSwapchainSetupDevice( void **opaque, const libvlc_video_direct3d_device_cfg_t *cfg, libvlc_video_direct3d_device_setup_t *out )
-{
-    vout_display_t *vd = *opaque;
-    vout_display_sys_t *sys = vd->sys;
-    if (D3D9_Create(vd, &sys->hd3d) != VLC_SUCCESS)
-    {
-        msg_Err( vd, "Direct3D9 could not be initialized" );
-        return false;
-    }
-
-    out->device_context = sys->hd3d.obj;
-    out->adapter = -1;
-    return true;
-}
-
-static void LocalSwapchainCleanupDevice( void *opaque )
-{
-    vout_display_t *vd = opaque;
-    vout_display_sys_t *sys = vd->sys;
-    D3D9_Destroy(&sys->hd3d);
-}
 
 static bool LocalSwapchainUpdateOutput( void *opaque, const libvlc_video_direct3d_cfg_t *cfg, libvlc_video_output_cfg_t *out )
 {
@@ -1665,44 +1635,42 @@ static int Open(vout_display_t *vd, const vout_display_cfg_t *cfg,
     CommonInit(vd, &sys->area, cfg);
 
     sys->outside_opaque = var_InheritAddress( vd, "vout-cb-opaque" );
-    sys->setupDeviceCb       = var_InheritAddress( vd, "vout-cb-setup" );
-    sys->cleanupDeviceCb     = var_InheritAddress( vd, "vout-cb-cleanup" );
     sys->updateOutputCb      = var_InheritAddress( vd, "vout-cb-update-output" );
     sys->swapCb              = var_InheritAddress( vd, "vout-cb-swap" );
     sys->startEndRenderingCb = var_InheritAddress( vd, "vout-cb-make-current" );
 
-    if ( sys->setupDeviceCb == NULL || sys->swapCb == NULL || sys->startEndRenderingCb == NULL || sys->updateOutputCb == NULL )
+    if ( sys->swapCb == NULL || sys->startEndRenderingCb == NULL || sys->updateOutputCb == NULL )
     {
         /* use our own callbacks, since there isn't any external ones */
         if (CommonWindowInit(VLC_OBJECT(vd), &sys->area, &sys->sys, false))
             goto error;
 
         sys->outside_opaque = vd;
-        sys->setupDeviceCb       = LocalSwapchainSetupDevice;
-        sys->cleanupDeviceCb     = LocalSwapchainCleanupDevice;
         sys->updateOutputCb      = LocalSwapchainUpdateOutput;
         sys->swapCb              = LocalSwapchainSwap;
         sys->startEndRenderingCb = NULL;
     }
 
-    libvlc_video_direct3d_device_cfg_t surface_cfg = {
-        .hardware_decoding = is_d3d9_opaque( vd->source.i_chroma ),
-    };
-    libvlc_video_direct3d_device_setup_t device_setup;
-    if ( !sys->setupDeviceCb( &sys->outside_opaque, &surface_cfg, &device_setup ) ||
-         device_setup.device_context == NULL )
+    d3d9_decoder_device_t *d3d9_decoder = GetD3D9OpaqueContext(context);
+    if ( d3d9_decoder == NULL )
     {
-        msg_Err(vd, "Missing external IDirect3D9");
-        return VLC_EGENERIC;
+        // No d3d9 device, we create one
+        if (D3D9_Create(vd, &sys->hd3d) != VLC_SUCCESS)
+            goto error;
     }
-    IDirect3D9 *d3d9_device = device_setup.device_context;
-    D3D9_CloneExternal( &sys->hd3d, d3d9_device );
-    HRESULT hr = D3D9_CreateDevice(vd, &sys->hd3d, device_setup.adapter, &sys->d3d_dev);
+    if (d3d9_decoder != NULL && d3d9_decoder->device != NULL)
+        D3D9_CloneExternal( &sys->hd3d, d3d9_decoder->device );
+
+    d3d9_video_context_t *octx = GetD3D9ContextPrivate(context);
+    HRESULT hr;
+    if (octx != NULL)
+        hr = D3D9_CreateDeviceExternal(octx->dev, &sys->hd3d, &sys->d3d_dev);
+    else
+        hr = D3D9_CreateDevice(vd, &sys->hd3d, d3d9_decoder ? d3d9_decoder->adapter : -1, &sys->d3d_dev);
+
     if (FAILED(hr)) {
         msg_Err( vd, "D3D9 Creation failed! (hr=0x%lX)", hr);
         D3D9_Destroy(&sys->hd3d);
-        if ( sys->cleanupDeviceCb )
-            sys->cleanupDeviceCb( sys->outside_opaque );
         free(sys);
         return VLC_EGENERIC;
     }
@@ -1717,7 +1685,7 @@ static int Open(vout_display_t *vd, const vout_display_cfg_t *cfg,
         goto error;
     }
 
-    if (sys->setupDeviceCb != LocalSwapchainSetupDevice)
+    if (sys->swapCb == LocalSwapchainSwap)
         CommonPlacePicture(VLC_OBJECT(vd), &sys->area, &sys->sys);
 
     sys->hxdll = Direct3D9LoadShaderLibrary();
@@ -1736,9 +1704,6 @@ static int Open(vout_display_t *vd, const vout_display_cfg_t *cfg,
     }
 
     /* Setup vout_display now that everything is fine */
-    vd->info.is_slow = false;
-    vd->info.has_pictures_invalid = !is_d3d9_opaque(fmt.i_chroma);
-
     if (var_InheritBool(vd, "direct3d9-hw-blending") &&
         sys->d3dregion_format != D3DFMT_UNKNOWN &&
         (sys->d3d_dev.caps.SrcBlendCaps  & D3DPBLENDCAPS_SRCALPHA) &&
@@ -1758,6 +1723,7 @@ static int Open(vout_display_t *vd, const vout_display_cfg_t *cfg,
     vd->prepare = Prepare;
     vd->display = Display;
     vd->control = Control;
+    vd->close = Close;
 
     return VLC_SUCCESS;
 error:
@@ -1815,7 +1781,7 @@ GLConvUpdate(const opengl_tex_converter_t *tc, GLuint *textures,
     struct glpriv *priv = tc->priv;
     HRESULT hr;
 
-    picture_sys_d3d9_t *picsys = ActivePictureSys(pic);
+    picture_sys_d3d9_t *picsys = ActiveD3D9PictureSys(pic);
     if (unlikely(!picsys || !priv->gl_render))
         return VLC_EGENERIC;
 
@@ -1919,6 +1885,10 @@ GLConvOpen(vlc_object_t *obj)
      && tc->fmt.i_chroma != VLC_CODEC_D3D9_OPAQUE_10B)
         return VLC_EGENERIC;
 
+    d3d9_video_context_t *vctx_sys = GetD3D9ContextPrivate( tc->vctx );
+    if ( vctx_sys == NULL )
+        return VLC_EGENERIC;
+
     if (tc->gl->ext != VLC_GL_EXT_WGL || !tc->gl->wgl.getExtensionsString)
         return VLC_EGENERIC;
 
@@ -1952,18 +1922,17 @@ GLConvOpen(vlc_object_t *obj)
 
     if (D3D9_Create(obj, &priv->hd3d) != VLC_SUCCESS)
         goto error;
-
     if (!priv->hd3d.use_ex)
     {
         msg_Warn(obj, "DX/GL interrop only working on d3d9x");
         goto error;
     }
 
-    if (FAILED(D3D9_CreateDevice(obj, &priv->hd3d, -1,
-                                 &priv->d3d_dev)))
+    HRESULT hr;
+    hr = D3D9_CreateDeviceExternal(vctx_sys->dev, &priv->hd3d, &priv->d3d_dev );
+    if (FAILED(hr))
         goto error;
 
-    HRESULT hr;
     HANDLE shared_handle = NULL;
     hr = IDirect3DDevice9Ex_CreateRenderTarget(priv->d3d_dev.devex,
                                                tc->fmt.i_visible_width,
@@ -1973,7 +1942,7 @@ GLConvOpen(vlc_object_t *obj)
                                                &priv->dx_render, &shared_handle);
     if (FAILED(hr))
     {
-        msg_Warn(obj, "IDirect3DDevice9_CreateOffscreenPlainSurface failed");
+        msg_Warn(obj, "IDirect3DDevice9Ex_CreateRenderTarget failed");
         goto error;
     }
 

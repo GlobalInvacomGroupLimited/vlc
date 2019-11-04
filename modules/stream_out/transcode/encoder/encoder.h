@@ -85,14 +85,12 @@ int transcode_encoder_test( vlc_object_t *p_obj,
                             es_format_t *p_enc_wanted_in );
 
 void transcode_encoder_video_configure( vlc_object_t *p_obj,
-                                        const video_format_t *p_dec_in,
                                         const video_format_t *p_dec_out,
                                         const transcode_encoder_config_t *p_cfg,
                                         const video_format_t *p_src,
                                         transcode_encoder_t *p_enc );
 
-int transcode_encoder_audio_configure( vlc_object_t *p_obj,
-                                       const transcode_encoder_config_t *p_cfg,
+int transcode_encoder_audio_configure( const transcode_encoder_config_t *p_cfg,
                                        const audio_format_t *p_dec_out,
                                        transcode_encoder_t *p_enc, bool );
 

@@ -968,6 +968,7 @@ static const char *const ppsz_prefres[] = {
     "priority.")
 
 #define DEC_DEV_TEXT N_("Preferred decoder hardware device")
+#define DEC_DEV_LONGTEXT N_("This allows hardware decoding when available.")
 
 /*****************************************************************************
  * Sout
@@ -1780,7 +1781,6 @@ vlc_module_begin ()
                  SUB_MARGIN_LONGTEXT, true )
     add_integer_with_range( "sub-text-scale", 100, 10, 500,
                SUB_TEXT_SCALE_TEXT, SUB_TEXT_SCALE_LONGTEXT, false )
-        change_volatile  ()
     set_section( N_( "Overlays" ) , NULL )
     add_module_list("sub-source", "sub source", NULL,
                     SUB_SOURCE_TEXT, SUB_SOURCE_LONGTEXT)
@@ -2038,7 +2038,7 @@ vlc_module_begin ()
                 CODEC_LONGTEXT, true )
     add_string( "encoder",  NULL, ENCODER_TEXT,
                 ENCODER_LONGTEXT, true )
-    add_string( "dec-dev", NULL, DEC_DEV_TEXT, NULL, true )
+    add_module("dec-dev", "decoder device", "any", DEC_DEV_TEXT, DEC_DEV_LONGTEXT)
 
     set_subcategory( SUBCAT_INPUT_ACCESS )
     add_category_hint(N_("Input"), INPUT_CAT_LONGTEXT)

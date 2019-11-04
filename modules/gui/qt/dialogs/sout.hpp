@@ -31,102 +31,34 @@
 
 #include "ui_sout.h"
 #include "util/qvlcframe.hpp"
+#include "util/soutchain.hpp"
 
 #include <QWizard>
 
 class QPushButton;
-
-class SoutMrl
-{
-public:
-    SoutMrl( const QString& head = "")
-    {
-        mrl = head;
-        b_first = true;
-        b_has_bracket = false;
-    }
-
-    QString getMrl()
-    {
-        return mrl;
-    }
-
-    void begin( const QString& module )
-    {
-        if( !b_first )
-            mrl += ":";
-        b_first = false;
-
-        mrl += module;
-        b_has_bracket = false;
-    }
-    void end()
-    {
-        if( b_has_bracket )
-            mrl += "}";
-    }
-    void option( const QString& option, const QString& value = "" )
-    {
-        if( !b_has_bracket )
-            mrl += "{";
-        else
-            mrl += ",";
-        b_has_bracket = true;
-
-        mrl += option;
-
-        if( !value.isEmpty() )
-        {
-            char *psz = config_StringEscape( qtu(value) );
-            if( psz )
-            {
-                mrl += "=" + qfu( psz );
-                free( psz );
-            }
-        }
-    }
-    void option( const QString& name, const int i_value, const int i_precision = 10 )
-    {
-        option( name, QString::number( i_value, i_precision ) );
-    }
-    void option( const QString& name, const double f_value )
-    {
-        option( name, QString::number( f_value ) );
-    }
-
-    void option( const QString& name, const QString& base, const int i_value, const int i_precision = 10 )
-    {
-        option( name, base + ":" + QString::number( i_value, i_precision ) );
-    }
-
-private:
-    QString mrl;
-    bool b_has_bracket;
-    bool b_first;
-};
 
 
 class SoutDialog : public QWizard
 {
     Q_OBJECT
 public:
-    SoutDialog( QWidget* parent, intf_thread_t *, const QString& mrl = "");
+    SoutDialog( QWidget* parent, intf_thread_t *, const QString& chain = "");
     virtual ~SoutDialog(){}
 
-    QString getMrl(){ return mrl; }
+    QString getChain(){ return chain; }
 
 protected:
     virtual void done( int );
 private:
     Ui::Sout ui;
 
-    QString mrl;
+    QString chain;
     QPushButton *okButton;
 
     intf_thread_t* p_intf;
 
 public slots:
-    void updateMRL();
+    void updateChain();
 
 private slots:
     void closeTab( int );

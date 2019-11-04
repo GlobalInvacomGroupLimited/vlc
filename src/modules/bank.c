@@ -118,7 +118,7 @@ static int vlc_module_store(module_t *mod)
     if (unlikely(cap->name == NULL))
         goto error;
 
-    vlc_modcap_t **cp = tsearch(cap, &modules.caps_tree, vlc_modcap_cmp);
+    void **cp = tsearch(cap, &modules.caps_tree, vlc_modcap_cmp);
     if (unlikely(cp == NULL))
         goto error;
 
@@ -166,7 +166,7 @@ static vlc_plugin_t *module_InitStatic(vlc_plugin_cb entry)
         return NULL;
 
 #ifdef HAVE_DYNAMIC_PLUGINS
-    atomic_init(&lib->handle, 1 /* must be non-zero for module_Map() */);
+    atomic_init(&lib->handle, 0);
     lib->unloadable = false;
 #endif
     return lib;
@@ -536,6 +536,8 @@ int module_Map(struct vlc_logger *log, vlc_plugin_t *plugin)
 {
     static vlc_mutex_t lock = VLC_STATIC_MUTEX;
 
+    if (plugin->abspath == NULL)
+        return 0; /* static module needs not be mapped */
     if (atomic_load_explicit(&plugin->handle, memory_order_acquire))
         return 0; /* fast path: already loaded */
 
@@ -596,11 +598,12 @@ static void module_Unmap(vlc_plugin_t *plugin)
 void *module_Symbol(struct vlc_logger *log,
                     vlc_plugin_t *plugin, const char *name)
 {
-    if (module_Map(log, plugin))
+    if (plugin->abspath == NULL || module_Map(log, plugin))
         return NULL;
 
     void *handle = (void *)atomic_load_explicit(&plugin->handle,
                                                 memory_order_relaxed);
+    assert(handle != NULL);
     return vlc_dlsym(handle, name);
 }
 #else
@@ -784,7 +787,7 @@ module_t **module_list_get (size_t *n)
  */
 ssize_t module_list_cap (module_t ***restrict list, const char *name)
 {
-    const vlc_modcap_t **cp = tfind(&name, &modules.caps_tree, vlc_modcap_cmp);
+    const void **cp = tfind(&name, &modules.caps_tree, vlc_modcap_cmp);
     if (cp == NULL)
     {
         *list = NULL;

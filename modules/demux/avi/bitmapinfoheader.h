@@ -174,8 +174,12 @@ static inline int ParseBitmapInfoHeader( VLC_BITMAPINFOHEADER *p_bih, size_t i_b
         }
 
         p_props->i_stride = p_bih->biWidth * (p_bih->biBitCount >> 3);
-        /* RGB DIB are coded from bottom to top */
-        if ( p_bih->biHeight < INT32_MAX ) p_props->b_flipped = true;
+        /* Unintuitively RGB DIB are always coded from bottom to top,
+         * except when height is negative */
+        if ( p_bih->biHeight <= INT32_MAX )
+            p_props->b_flipped = true;
+        /* else
+         *     set below to positive value */
     }
     else /* Compressed codecs */
     {
@@ -195,16 +199,19 @@ static inline int ParseBitmapInfoHeader( VLC_BITMAPINFOHEADER *p_bih, size_t i_b
         SetBitmapRGBMasks( fmt->i_codec, fmt );
     }
 
-    fmt->video.i_visible_width =
-    fmt->video.i_width  = p_bih->biWidth;
-    fmt->video.i_visible_height =
-    fmt->video.i_height = p_bih->biHeight;
-    fmt->video.i_bits_per_pixel = p_bih->biBitCount;
+    video_format_Setup( &fmt->video, fmt->i_codec,
+                        p_bih->biWidth, p_bih->biHeight,
+                        p_bih->biWidth, p_bih->biHeight,
+                        fmt->video.i_sar_num, fmt->video.i_sar_den );
 
-    /* Uncompressed Bitmap or YUV, YUV being always topdown */
+    /* Uncompressed Bitmap or YUV, YUV being always top to bottom whatever
+     * height sign is, and compressed must also not use flip, so positive
+     * values only here */
     if ( fmt->video.i_height > INT32_MAX )
-        fmt->video.i_height =
-            (unsigned int)(-(int)p_bih->biHeight);
+    {
+        fmt->video.i_visible_height =
+        fmt->video.i_height = -1 * p_bih->biHeight;
+    }
 
     return VLC_SUCCESS;
 }
@@ -246,7 +253,8 @@ static inline VLC_BITMAPINFOHEADER * CreateBitmapInfoHeader( const es_format_t *
             biCompression = VLC_FOURCC( 'X', 'V', 'I', 'D' );
             break;
         default:
-            biCompression = fmt->i_original_fourcc ?: fmt->i_codec;
+            biCompression = fmt->i_original_fourcc
+                ? fmt->i_original_fourcc : fmt->i_codec;
             break;
     }
 

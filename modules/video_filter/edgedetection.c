@@ -46,7 +46,7 @@
  * Local prototypes
  *****************************************************************************/
 static int Open( vlc_object_t * );
-static int Close( vlc_object_t * );
+static void Close( vlc_object_t * );
 static picture_t *new_frame( filter_t * );
 static picture_t *Filter( filter_t *, picture_t * );
 static uint8_t sobel( const uint8_t *, const int, const int, int, int);
@@ -79,7 +79,7 @@ vlc_module_end ()
 
 static const struct filter_video_callbacks filter_video_edge_cbs =
 {
-    .buffer_new = new_frame,
+    new_frame,
 };
 
 /*****************************************************************************
@@ -131,19 +131,21 @@ static int Open( vlc_object_t *p_this )
 /******************************************************************************
  * Closes the filter and cleans up all dynamically allocated data.
  ******************************************************************************/
-static int Close( vlc_object_t *p_this )
+static void Close( vlc_object_t *p_this )
 {
     filter_t *p_filter = (filter_t *)p_this;
     filter_chain_Delete( (filter_chain_t *)p_filter->p_sys );
-    return VLC_SUCCESS;
 }
 
 /* *****************************************************************************
  * Allocates a new buffer for the filter chain.
  ******************************************************************************/
-static picture_t *new_frame( filter_t *p_filter)
+static picture_t *new_frame( filter_t *p_filter )
 {
-    return filter_NewPicture( p_filter->owner.sys );
+    filter_t *p_this = p_filter->owner.sys;
+    // the last filter of the internal chain gets its pictures from the original
+    // filter source
+    return filter_NewPicture( p_this );
 }
 
 /******************************************************************************

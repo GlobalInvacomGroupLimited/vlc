@@ -430,9 +430,9 @@ on_vout_changed(vlc_player_t *player, enum vlc_player_vout_action action,
 // player aout callbacks
 
 static void
-on_volume_changed(vlc_player_t *player, float new_volume, void *data)
+on_volume_changed(audio_output_t *aout, float new_volume, void *data)
 {
-    (void) player;
+    (void) aout;
 
     libvlc_media_player_t *mp = data;
 
@@ -444,9 +444,9 @@ on_volume_changed(vlc_player_t *player, float new_volume, void *data)
 }
 
 static void
-on_mute_changed(vlc_player_t *player, bool new_muted, void *data)
+on_mute_changed(audio_output_t *aout, bool new_muted, void *data)
 {
-    (void) player;
+    (void) aout;
 
     libvlc_media_player_t *mp = data;
 
@@ -458,9 +458,9 @@ on_mute_changed(vlc_player_t *player, bool new_muted, void *data)
 }
 
 static void
-on_audio_device_changed(vlc_player_t *player, const char *device, void *data)
+on_audio_device_changed(audio_output_t *aout, const char *device, void *data)
 {
-    (void) player;
+    (void) aout;
 
     libvlc_media_player_t *mp = data;
 
@@ -606,7 +606,6 @@ libvlc_media_player_new( libvlc_instance_t *instance )
     var_Create( mp, "vout-cb-select-plane", VLC_VAR_ADDRESS );
 
     var_Create (mp, "dec-dev", VLC_VAR_STRING);
-    var_Create (mp, "avcodec-hw", VLC_VAR_STRING);
     var_Create (mp, "drawable-xid", VLC_VAR_INTEGER);
 #if defined (_WIN32) || defined (__OS2__)
     var_Create (mp, "drawable-hwnd", VLC_VAR_INTEGER);
@@ -1010,7 +1009,7 @@ void libvlc_video_set_callbacks( libvlc_media_player_t *mp,
     var_SetAddress( mp, "vmem-unlock", unlock_cb );
     var_SetAddress( mp, "vmem-display", display_cb );
     var_SetAddress( mp, "vmem-data", opaque );
-    var_SetString( mp, "avcodec-hw", "none" );
+    var_SetString( mp, "dec-dev", "none" );
     var_SetString( mp, "vout", "vmem" );
     var_SetString( mp, "window", "dummy" );
 }
@@ -1089,12 +1088,12 @@ bool libvlc_video_direct3d_set_callbacks(libvlc_media_player_t *mp,
     if ( engine == libvlc_video_direct3d_engine_d3d11 )
     {
         var_SetString ( mp, "vout", "direct3d11" );
-        var_SetString ( mp, "avcodec-hw", "d3d11va");
+        var_SetString ( mp, "dec-dev", "d3d11-device" );
     }
     else if ( engine == libvlc_video_direct3d_engine_d3d9 )
     {
         var_SetString ( mp, "vout", "direct3d9" );
-        var_SetString ( mp, "avcodec-hw", "dxva2");
+        var_SetString ( mp, "dec-dev", "d3d9-device" );
     }
     else
         return false;
@@ -1124,7 +1123,7 @@ void libvlc_media_player_set_nsobject( libvlc_media_player_t *p_mi,
 {
     assert (p_mi != NULL);
 #ifdef __APPLE__
-    var_SetString (p_mi, "avcodec-hw", "");
+    var_SetString (p_mi, "dec-dev", "");
     var_SetString (p_mi, "vout", "");
     var_SetString (p_mi, "window", "");
     var_SetAddress (p_mi, "drawable-nsobject", drawable);
@@ -1159,7 +1158,7 @@ void libvlc_media_player_set_xwindow( libvlc_media_player_t *p_mi,
 {
     assert (p_mi != NULL);
 
-    var_SetString (p_mi, "avcodec-hw", "");
+    var_SetString (p_mi, "dec-dev", "");
     var_SetString (p_mi, "vout", "");
     var_SetString (p_mi, "window", drawable ? "embed-xid,any" : "");
     var_SetInteger (p_mi, "drawable-xid", drawable);
@@ -1181,7 +1180,7 @@ void libvlc_media_player_set_hwnd( libvlc_media_player_t *p_mi,
 {
     assert (p_mi != NULL);
 #if defined (_WIN32) || defined (__OS2__)
-    var_SetString (p_mi, "avcodec-hw", "");
+    var_SetString (p_mi, "dec-dev", "");
     var_SetString (p_mi, "vout", "");
     var_SetString (p_mi, "window",
                    (drawable != NULL) ? "embed-hwnd,any" : "");

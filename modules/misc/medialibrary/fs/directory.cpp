@@ -24,7 +24,9 @@
 
 #include "directory.h"
 #include "file.h"
+#include "util.h"
 
+#include <algorithm>
 #include <assert.h>
 #include <vector>
 #include <system_error>
@@ -33,6 +35,7 @@
 #include <vlc_input.h>
 #include <vlc_threads.h>
 #include <vlc_cxx_helpers.hpp>
+#include <medialibrary/filesystem/Errors.h>
 
 using InputItemPtr = vlc_shared_data_ptr_type(input_item_t,
                                               input_item_Hold,
@@ -77,6 +80,21 @@ SDDirectory::device() const
     if (!m_device)
         m_device = m_fs.createDeviceFromMrl(mrl());
     return m_device;
+}
+
+std::shared_ptr<IFile> SDDirectory::file(const std::string& mrl) const
+{
+    auto fs = files();
+    // Don't compare entire mrls, this might yield false negative when a
+    // device has multiple mountpoints.
+    auto fileName = utils::fileName( mrl );
+    auto it = std::find_if( cbegin( fs ), cend( fs ),
+                            [&fileName]( const std::shared_ptr<fs::IFile> f ) {
+                                return f->name() == fileName;
+                            });
+    if ( it == cend( fs ) )
+        throw medialibrary::fs::errors::NotFound( mrl, m_mrl );
+    return *it;
 }
 
 struct metadata_request {
@@ -129,7 +147,7 @@ static bool request_metadata_sync( libvlc_int_t *libvlc, input_item_t *media,
     metadata_request req;
     req.children = out_children;
     req.probe = false;
-    auto deadline = vlc_tick_now() + VLC_TICK_FROM_SEC( 5 );
+    auto deadline = vlc_tick_now() + VLC_TICK_FROM_SEC( 15 );
 
     media->i_preparse_depth = 1;
 
@@ -151,9 +169,8 @@ static bool request_metadata_sync( libvlc_int_t *libvlc, input_item_t *media,
         auto res = req.cond.timedwait( req.lock, deadline );
         if (res != 0 )
         {
-            throw std::system_error( ETIMEDOUT, std::generic_category(),
-                                     "Failed to browse network directory: "
-                                     "Network is too slow");
+            throw medialibrary::fs::errors::System( ETIMEDOUT,
+                "Failed to browse network directory: Network is too slow" );
         }
     }
     return req.success;
@@ -172,9 +189,8 @@ SDDirectory::read() const
     auto status = request_metadata_sync( m_fs.libvlc(), media.get(), &children);
 
     if ( status == false )
-        throw std::system_error(EIO, std::generic_category(),
-                                "Failed to browse network directory: "
-                                "Unknown error");
+        throw medialibrary::fs::errors::System( EIO,
+            "Failed to browse network directory: Unknown error" );
 
     for (const InputItemPtr &m : children)
     {

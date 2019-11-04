@@ -19,14 +19,18 @@
 import QtQuick 2.11
 import QtQuick.Controls 2.4
 import QtQuick.Layouts 1.3
+import QtGraphicalEffects 1.0
+
 import "qrc:///style/"
+import "qrc:///utils/" as Utils
 
 NavigableFocusScope {
     id: root
     signal playClicked
     signal addToPlaylistClicked
-    signal itemClicked(int keys, int modifier)
+    signal itemClicked(int key, int modifier)
     signal itemDoubleClicked(int keys, int modifier)
+    signal contextMenuButtonClicked(Item menuParent)
 
     property alias hovered: mouse.containsMouse
 
@@ -36,6 +40,9 @@ NavigableFocusScope {
     property alias imageText: cover_text.text
 
     property alias color: linerect.color
+    property bool showContextButton: false
+
+    Keys.onMenuPressed: root.contextMenuButtonClicked(cover_bg)
 
     Component {
         id: actionAdd
@@ -45,8 +52,11 @@ NavigableFocusScope {
 
             focus: true
 
-            highlightColor: activeFocus ? VLCStyle.colors.banner : "transparent"
+            font.underline: activeFocus
 
+            highlightColor: VLCStyle.colors.getBgColor(
+                                root.isSelected, root.hovered,
+                                root.activeFocus)
             //visible: mouse.containsMouse || root.activeFocus
             onClicked: root.addToPlaylistClicked()
         }
@@ -63,7 +73,11 @@ NavigableFocusScope {
 
             focus: true
 
-            highlightColor: add_and_play_icon.activeFocus ? VLCStyle.colors.banner : "transparent"
+            font.underline: activeFocus
+
+            highlightColor: VLCStyle.colors.getBgColor(
+                                root.isSelected, root.hovered,
+                                root.activeFocus)
             onClicked: root.playClicked()
         }
     }
@@ -73,115 +87,145 @@ NavigableFocusScope {
     Rectangle {
         id: linerect
         anchors.fill: parent
-        color: "transparent"
+        color: VLCStyle.colors.getBgColor(
+                   root.isSelected, root.hovered,
+                   root.activeFocus)
 
         MouseArea {
             id: mouse
             anchors.fill: parent
             hoverEnabled: true
+            acceptedButtons: Qt.LeftButton | Qt.RightButton
             onClicked: {
-                root.itemClicked(mouse.buttons, mouse.modifiers);
+                if (mouse.button === Qt.RightButton)
+                    contextMenuButtonClicked(root);
+                else
+                    root.itemClicked(mouse.button, mouse.modifiers);
             }
             onDoubleClicked: {
                 root.itemDoubleClicked(mouse.buttons, mouse.modifiers);
             }
-        }
 
-        RowLayout {
-            anchors.fill: parent
 
             Item {
-                Layout.preferredWidth: VLCStyle.icon_normal
-                Layout.preferredHeight: VLCStyle.icon_normal
-                Loader {
+                id: innerRect
+                anchors.fill: parent
+                anchors.margins: VLCStyle.margin_xxsmall
+                anchors.verticalCenter: parent.verticalCenter
+
+                RowLayout {
                     anchors.fill: parent
-                    sourceComponent: root.cover
-                }
-                Text {
-                    id: cover_text
-                    anchors.centerIn: parent
-                    color: VLCStyle.colors.lightText
-                    font.pixelSize: VLCStyle.fontSize_xsmall
-                }
-            }
-            FocusScope {
-                id: presentation
-                Layout.fillHeight: true
-                Layout.fillWidth: true
-                focus: true
-
-                Column {
-                    anchors {
-                        left: parent.left
-                        right: parent.right
-                        verticalCenter: parent.verticalCenter
-                    }
-
-                    Text {
-                        id: line1_text
-                        width: parent.width
-
-                        elide: Text.ElideRight
-                        color: VLCStyle.colors.text
-                        font.pixelSize: VLCStyle.fontSize_normal
-                        enabled: text !== ""
-                    }
-                    Text {
-                        id: line2_text
-                        width: parent.width
-                        elide: Text.ElideRight
-                        color: VLCStyle.colors.lightText
-                        font.pixelSize: VLCStyle.fontSize_small
-                        visible: text !== ""
-                        enabled: text !== ""
-                    }
-                }
-
-                Keys.onRightPressed: {
-                    if (actionButtons.length === 0)
-                        root.actionRight(0)
-                    else
-                        toolButtons.focus = true
-                }
-                Keys.onLeftPressed: {
-                    root.actionLeft(0)
-                }
-            }
-
-            FocusScope {
-                id: toolButtons
-                Layout.preferredHeight: VLCStyle.icon_normal
-                Layout.preferredWidth: toolButtonsRow.implicitWidth
-                Layout.alignment: Qt.AlignVCenter
-                visible: mouse.containsMouse || root.activeFocus
-                property int focusIndex: 0
-                Row {
-                    id: toolButtonsRow
-                    anchors.fill: parent
-                    Repeater {
-                        id: buttons
-                        model: actionButtons
-                        delegate: Loader {
-                            sourceComponent: modelData
-                            focus: index === toolButtons.focusIndex
+                    anchors.rightMargin: VLCStyle.margin_xxsmall
+                    Item {
+                        Layout.preferredWidth: VLCStyle.icon_normal
+                        Layout.preferredHeight: VLCStyle.icon_normal
+                        Loader {
+                            anchors.fill: parent
+                            sourceComponent: root.cover
+                        }
+                        Text {
+                            id: cover_text
+                            anchors.centerIn: parent
+                            color: VLCStyle.colors.lightText
+                            font.pixelSize: VLCStyle.fontSize_xsmall
                         }
                     }
-                }
-                Keys.onLeftPressed: {
-                    if (focusIndex === 0)
-                        presentation.focus = true
-                    else {
-                        focusIndex -= 1
+                    FocusScope {
+                        id: presentation
+                        Layout.fillHeight: true
+                        Layout.fillWidth: true
+                        focus: true
+
+                        Column {
+                            anchors {
+                                left: parent.left
+                                right: parent.right
+                                verticalCenter: parent.verticalCenter
+                            }
+
+                            Text {
+                                id: line1_text
+                                width: parent.width
+
+                                elide: Text.ElideRight
+                                color: VLCStyle.colors.text
+                                font.pixelSize: VLCStyle.fontSize_normal
+                                enabled: text !== ""
+                            }
+                            Text {
+                                id: line2_text
+                                width: parent.width
+                                elide: Text.ElideRight
+                                color: VLCStyle.colors.lightText
+                                font.pixelSize: VLCStyle.fontSize_small
+                                visible: text !== ""
+                                enabled: text !== ""
+                            }
+                        }
+
+                        Keys.onRightPressed: {
+                            if (actionButtons.length === 0 && !root.showContextButton)
+                                root.navigationRight(0)
+                            else
+                                toolButtons.focus = true
+                        }
+                        Keys.onLeftPressed: {
+                            root.navigationLeft(0)
+                        }
                     }
-                }
-                Keys.onRightPressed: {
-                    if (focusIndex === actionButtons.length - 1)
-                        root.actionRight(0)
-                    else {
-                        focusIndex += 1
+
+                    FocusScope {
+                        id: toolButtons
+                        Layout.preferredHeight: VLCStyle.icon_normal
+                        Layout.preferredWidth: toolButtonsRow.implicitWidth
+                        Layout.alignment: Qt.AlignVCenter
+                        visible: mouse.containsMouse || root.activeFocus
+                        property int focusIndex: 0
+                        Row {
+                            id: toolButtonsRow
+                            anchors.fill: parent
+                            Repeater {
+                                id: buttons
+                                model: actionButtons
+                                delegate: Loader {
+                                    sourceComponent: modelData
+                                    focus: index === toolButtons.focusIndex
+                                }
+                            }
+                            IconToolButton {
+                                id: contextButton
+                                size: VLCStyle.icon_normal
+                                text: VLCIcons.ellipsis
+
+                                visible: root.showContextButton
+                                focus: actionButtons.length == toolButtons.focusIndex
+
+                                font.underline: activeFocus
+
+                                highlightColor: VLCStyle.colors.getBgColor(
+                                                    root.isSelected, root.hovered,
+                                                    root.activeFocus)
+                                onClicked: root.contextMenuButtonClicked(this)
+                            }
+                        }
+                    }
+                    Keys.onLeftPressed: {
+                        if (toolButtons.focusIndex === 0)
+                            presentation.focus = true
+                        else {
+                            toolButtons.focusIndex -= 1
+                        }
+                    }
+                    Keys.onRightPressed: {
+                        if (toolButtons.focusIndex === (actionButtons.length - (!root.showContextButton ? 1 : 0) ) )
+                            root.navigationRight(0)
+                        else {
+                            toolButtons.focusIndex += 1
+                        }
                     }
                 }
             }
         }
     }
 }
+

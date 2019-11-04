@@ -25,6 +25,7 @@ import "qrc:///style/"
 import "qrc:///qml/"
 import "qrc:///utils/" as Utils
 import "qrc:///playlist/" as PL
+import "qrc:///player/" as Player
 
 Utils.NavigableFocusScope {
     id: root
@@ -33,19 +34,59 @@ Utils.NavigableFocusScope {
     property string view: ""
     property var viewProperties: ({})
 
+    onViewChanged: loadView()
+    onViewPropertiesChanged: loadView()
+    Component.onCompleted: loadView()
+
+    function loadView() {
+        var found = stackView.loadView(root.pageModel, root.view, root.viewProperties)
+
+        sourcesBanner.subTabModel = stackView.currentItem.tabModel
+        sourcesBanner.sortModel = stackView.currentItem.sortModel
+        sourcesBanner.contentModel = stackView.currentItem.contentModel
+        sourcesBanner.extraLocalActions = stackView.currentItem.extraLocalActions
+        // Restore sourcesBanner state
+        sourcesBanner.selectedIndex = pageModel.findIndex(function (e) {
+            return e.name === root.view
+        })
+        if (stackView.currentItem.pageModel !== undefined)
+            sourcesBanner.subSelectedIndex = stackView.currentItem.pageModel.findIndex(function (e) {
+                return e.name === stackView.currentItem.view
+            })
+    }
+
+
     Component {
         id: musicComp
-        MCMusicDisplay {}
+        MCMusicDisplay {
+            navigationParent: medialibId
+            navigationUpItem: sourcesBanner
+            navigationRightItem: playlist
+            navigationDownItem: miniPlayer.expanded ? miniPlayer : medialibId
+            navigationCancelItem: stackViewZone
+        }
     }
 
     Component {
         id: videoComp
-        MCVideoDisplay {}
+        MCVideoDisplay {
+            navigationParent: medialibId
+            navigationUpItem: sourcesBanner
+            navigationRightItem: playlist
+            navigationDownItem: miniPlayer.expanded ? miniPlayer : medialibId
+            navigationCancelItem: stackViewZone
+        }
     }
 
     Component {
         id: networkComp
-        MCNetworkDisplay {}
+        MCNetworkDisplay {
+            navigationParent: medialibId
+            navigationUpItem: sourcesBanner
+            navigationRightItem: playlist
+            navigationDownItem: miniPlayer.expanded ? miniPlayer : medialibId
+            navigationCancelItem: stackViewZone
+        }
     }
 
     readonly property var pageModel: [
@@ -72,10 +113,10 @@ Utils.NavigableFocusScope {
         Component.onCompleted: {
             pageModel.forEach(function(e) {
                 append({
-                   displayText: e.displayText,
-                   icon: e.icon,
-                   name: e.name,
-               })
+                           displayText: e.displayText,
+                           icon: e.icon,
+                           name: e.name,
+                       })
             })
         }
     }
@@ -88,7 +129,6 @@ Utils.NavigableFocusScope {
             focus: true
             id: medialibId
             anchors.fill: parent
-            onActionRight: rootWindow.playlistVisible = true
 
             ColumnLayout {
                 id: column
@@ -111,16 +151,9 @@ Utils.NavigableFocusScope {
 
                     onItemClicked: {
                         sourcesBanner.subTabModel = undefined
-
                         var name = root.tabModel.get(index).name
-                        stackView.replace(root.pageModel[index].component)
-                        history.push(["mc", name], History.Stay)
-
-                        subTabModel = stackView.currentItem.tabModel
-                        sortModel = stackView.currentItem.sortModel
-                        contentModel = stackView.currentItem.contentModel
-
                         selectedIndex = index
+                        history.push(["mc", name], History.Go)
                     }
 
                     onSubItemClicked: {
@@ -128,13 +161,11 @@ Utils.NavigableFocusScope {
                         stackView.currentItem.loadIndex(index)
                         sortModel = stackView.currentItem.sortModel
                         contentModel = stackView.currentItem.contentModel
+                        extraLocalActions = stackView.currentItem.extraLocalActions
                     }
 
-                    onActionDown: stackViewZone.focus = true
-                    onActionLeft: root.actionLeft(index)
-                    onActionRight: root.actionRight(index)
-                    onActionUp: root.actionUp(index)
-                    onActionCancel: root.actionCancel(index)
+                    navigationParent: root
+                    navigationDownItem: stackView
                 }
 
                 Item {
@@ -167,102 +198,68 @@ Utils.NavigableFocusScope {
                         visible: stackViewZone.focus
                         anchors.fill: stackViewZone
                         z: 42
-                        color: "#22ff950d"
+                        color: VLCStyle.colors.setColorAlpha(VLCStyle.colors.accent, 0.08)
                         border.width: VLCStyle.selectedBorder
                         border.color: VLCStyle.colors.accent
                     }
 
                     Utils.StackViewExt {
                         id: stackView
-                        anchors.fill: parent
+                        anchors {
+                            top: parent.top
+                            left: parent.left
+                            bottom: parent.bottom
+                            right: playlist.visible ? playlist.left : parent.right
+                        }
+                    }
 
-                        Component.onCompleted: {
-                            var found = stackView.loadView(root.pageModel, root.view, root.viewProperties)
-                            sourcesBanner.subTabModel = stackView.currentItem.tabModel
-                            sourcesBanner.sortModel = stackView.currentItem.sortModel
-                            sourcesBanner.contentModel = stackView.currentItem.contentModel
-                            // Restore sourcesBanner state
-                            sourcesBanner.selectedIndex = pageModel.findIndex(function (e) {
-                                return e.name === root.view
-                            })
-                            if (stackView.currentItem.pageModel !== undefined)
-                                sourcesBanner.subSelectedIndex = stackView.currentItem.pageModel.findIndex(function (e) {
-                                    return e.name === stackView.currentItem.view
-                                })
+
+                    PL.PlaylistListView {
+                        id: playlist
+                        focus: true
+                        width: root.width/4
+                        visible: rootWindow.playlistDocked && rootWindow.playlistVisible
+                        anchors {
+                            top: parent.top
+                            right: parent.right
+                            bottom: parent.bottom
                         }
 
-                        Utils.Drawer {
-                            z: 1
-                            id: playlist
+                        navigationParent: medialibId
+                        navigationLeftItem: stackView
+                        navigationUpItem: sourcesBanner
+                        navigationDownItem: miniPlayer.expanded ? miniPlayer : undefined
+                        navigationCancelItem: stackViewZone
+
+                        Rectangle {
                             anchors {
                                 top: parent.top
-                                right: parent.right
+                                left: parent.left
                                 bottom: parent.bottom
                             }
-                            focus: false
-                            expandHorizontally: true
-
-                            state: (rootWindow.playlistDocked && rootWindow.playlistVisible) ? "visible" : "hidden"
-                            onVisibleChanged: {
-                                if (playlist.visible)
-                                    playlist.forceActiveFocus()
-                            }
-                            component: Rectangle {
-                                color: VLCStyle.colors.setColorAlpha(VLCStyle.colors.banner, 0.9)
-                                width: root.width/3
-                                height: playlist.height
-
-                                MouseArea {
-                                    anchors.fill: parent
-                                    propagateComposedEvents: false
-                                    hoverEnabled: true
-                                    preventStealing: true
-                                    onWheel: event.accepted = true
-
-                                    PL.PlaylistListView {
-                                        id: playlistView
-                                        focus: true
-                                        anchors.fill: parent
-                                        onActionLeft: playlist.closeAndFocus(stackView.currentItem)
-                                        onActionCancel: playlist.closeAndFocus(stackView.currentItem)
-                                        onActionUp: playlist.closeAndFocus(sourcesBanner)
-                                    }
-                                }
-                            }
-                            function closeAndFocus(item){
-                                if (!item)
-                                    return
-
-                                rootWindow.playlistVisible = false
-                                item.forceActiveFocus()
-                            }
+                            width: VLCStyle.margin_xxsmall
+                            color: VLCStyle.colors.banner
                         }
                     }
                 }
 
-                MiniPlayer {
+                Player.MiniPlayer {
                     id: miniPlayer
 
-                    onActionUp: stackViewZone.focus = true
-                    onActionCancel: sourcesBanner.focus = true
-                    onActionDown: medialibId.actionDown(index)
+                    navigationParent: medialibId
+                    navigationUpItem: stackView
+                    navigationCancelItem:sourcesBanner
+                    onExpandedChanged: {
+                        if (!expanded && miniPlayer.activeFocus)
+                            stackView.forceActiveFocus()
+                    }
                 }
             }
 
-            Connections {
-                target: stackView.currentItem
-                ignoreUnknownSignals: true
-
-                onActionUp: sourcesBanner.focus = true
-                onActionCancel: stackViewZone.focus = true
-                onActionLeft: medialibId.actionLeft(index)
-                onActionRight: medialibId.actionRight(index)
-                onActionDown: {
-                    if (miniPlayer.expanded)
-                        miniPlayer.focus = true
-                    else
-                        medialibId.actionDown(index)
-                }
+            Utils.ScanProgressBar {
+                anchors.left: parent.left
+                anchors.right: parent.right
+                anchors.bottom: parent.bottom
             }
         }
 

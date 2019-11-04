@@ -294,8 +294,9 @@ static HRESULT Play( vlc_object_t *obj, aout_stream_sys_t *sys,
     return dsresult;
 }
 
-static HRESULT StreamPlay( aout_stream_t *s, block_t *block )
+static HRESULT StreamPlay( aout_stream_t *s, block_t *block, vlc_tick_t date )
 {
+    (void) date;
     return Play( VLC_OBJECT(s), s->sys, block );
 }
 
@@ -791,19 +792,8 @@ static HRESULT Start( vlc_object_t *obj, aout_stream_sys_t *sys,
         if( ret != ENOMEM )
             msg_Err( obj, "Couldn't start eraser thread" );
 
-        vlc_cond_destroy(&sys->cond);
-        vlc_mutex_destroy(&sys->lock);
-
-        if( sys->p_notify != NULL )
-        {
-            IDirectSoundNotify_Release( sys->p_notify );
-            sys->p_notify = NULL;
-        }
-        IDirectSoundBuffer_Release( sys->p_dsbuffer );
-        sys->p_dsbuffer = NULL;
-        IDirectSound_Release( sys->p_dsobject );
-        sys->p_dsobject = NULL;
-        return ret;
+        hr = E_FAIL;
+        goto error;
     }
 
     fmt.channel_type = AUDIO_CHANNEL_TYPE_BITMAP;
@@ -817,7 +807,21 @@ static HRESULT Start( vlc_object_t *obj, aout_stream_sys_t *sys,
     return DS_OK;
 
 error:
-    Stop( sys );
+    vlc_cond_destroy(&sys->cond);
+    vlc_mutex_destroy(&sys->lock);
+
+    if( sys->p_notify != NULL )
+    {
+        IDirectSoundNotify_Release( sys->p_notify );
+        sys->p_notify = NULL;
+    }
+    if( sys->p_dsbuffer != NULL )
+    {
+        IDirectSoundBuffer_Release( sys->p_dsbuffer );
+        sys->p_dsbuffer = NULL;
+    }
+    IDirectSound_Release( sys->p_dsobject );
+    sys->p_dsobject = NULL;
     return hr;
 }
 

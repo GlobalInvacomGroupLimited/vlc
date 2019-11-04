@@ -23,10 +23,14 @@
 #ifndef VLC_VIDEOCHROMA_D3D11_FMT_H_
 #define VLC_VIDEOCHROMA_D3D11_FMT_H_
 
+#include <vlc_codec.h>
+
 #include <d3d11.h>
 #include <d3dcompiler.h>
 
 #include "dxgi_fmt.h"
+
+#include <vlc_picture.h>
 
 DEFINE_GUID(GUID_CONTEXT_MUTEX, 0x472e8835, 0x3f8e, 0x4f93, 0xa0, 0xcb, 0x25, 0x79, 0x77, 0x6c, 0xed, 0x86);
 
@@ -64,7 +68,6 @@ typedef struct
 /* owned by the vout for VLC_CODEC_D3D11_OPAQUE */
 typedef struct
 {
-    ID3D11VideoDecoderOutputView  *decoder; /* may be NULL for pictures from the pool */
     union {
         ID3D11Texture2D           *texture[D3D11_MAX_SHADER_VIEW];
         ID3D11Resource            *resource[D3D11_MAX_SHADER_VIEW];
@@ -77,6 +80,23 @@ typedef struct
     DXGI_FORMAT                   formatTexture;
 } picture_sys_d3d11_t;
 
+struct d3d11_pic_context
+{
+    picture_context_t         s;
+    picture_sys_d3d11_t       picsys;
+};
+
+typedef struct
+{
+    ID3D11DeviceContext *device;
+} d3d11_decoder_device_t;
+
+typedef struct
+{
+    ID3D11DeviceContext *device;
+    DXGI_FORMAT         format;
+} d3d11_video_context_t;
+
 /* index to use for texture/resource that use a known DXGI format
  * (ie not DXGI_FORMAT_UNKNWON) */
 #define KNOWN_DXGI_INDEX   0
@@ -87,6 +107,37 @@ static inline bool is_d3d11_opaque(vlc_fourcc_t chroma)
            chroma == VLC_CODEC_D3D11_OPAQUE_10B ||
            chroma == VLC_CODEC_D3D11_OPAQUE_RGBA ||
            chroma == VLC_CODEC_D3D11_OPAQUE_BGRA;
+}
+
+const struct vlc_video_context_operations d3d11_vctx_ops;
+
+picture_sys_d3d11_t *ActiveD3D11PictureSys(picture_t *);
+
+static inline d3d11_decoder_device_t *GetD3D11OpaqueDevice(vlc_decoder_device *device)
+{
+    if (device == NULL || device->type != VLC_DECODER_DEVICE_D3D11VA)
+        return NULL;
+    return device->opaque;
+}
+
+static inline d3d11_decoder_device_t *GetD3D11OpaqueContext(vlc_video_context *vctx)
+{
+    vlc_decoder_device *device = vctx ? vlc_video_context_HoldDevice(vctx) : NULL;
+    if (unlikely(device == NULL))
+        return NULL;
+    d3d11_decoder_device_t *res = NULL;
+    if (device->type == VLC_DECODER_DEVICE_D3D11VA)
+    {
+        assert(device->opaque != NULL);
+        res = GetD3D11OpaqueDevice(device);
+    }
+    vlc_decoder_device_Release(device);
+    return res;
+}
+
+static inline d3d11_video_context_t *GetD3D11ContextPrivate(vlc_video_context *vctx)
+{
+    return (d3d11_video_context_t *) vlc_video_context_GetPrivate( vctx, VLC_VIDEO_CONTEXT_D3D11VA );
 }
 
 void AcquireD3D11PictureSys(picture_sys_d3d11_t *p_sys);
@@ -116,7 +167,6 @@ int D3D11_Create(vlc_object_t *, d3d11_handle_t *, bool with_shaders);
 void D3D11_Destroy(d3d11_handle_t *);
 
 bool isXboxHardware(ID3D11Device *d3ddev);
-bool CanUseVoutPool(d3d11_device_t *, UINT slices);
 IDXGIAdapter *D3D11DeviceAdapter(ID3D11Device *d3ddev);
 int D3D11CheckDriverVersion(d3d11_device_t *, UINT vendorId,
                             const struct wddm_version *min_ver);
@@ -145,8 +195,9 @@ const d3d_format_t *FindD3D11Format(vlc_object_t *,
     FindD3D11Format(VLC_OBJECT(a),b,c,d,e,f,g,h,i)
 
 int AllocateTextures(vlc_object_t *, d3d11_device_t *, const d3d_format_t *,
-                     const video_format_t *, unsigned pool_size, ID3D11Texture2D *textures[]);
-#define AllocateTextures(a,b,c,d,e,f)  AllocateTextures(VLC_OBJECT(a),b,c,d,e,f)
+                     const video_format_t *, unsigned pool_size, ID3D11Texture2D *textures[],
+                     plane_t planes[]);
+#define AllocateTextures(a,b,c,d,e,f,g)  AllocateTextures(VLC_OBJECT(a),b,c,d,e,f,g)
 
 static inline void d3d11_device_lock(d3d11_device_t *d3d_dev)
 {
@@ -159,5 +210,8 @@ static inline void d3d11_device_unlock(d3d11_device_t *d3d_dev)
     if( d3d_dev->context_mutex  != INVALID_HANDLE_VALUE )
         ReleaseMutex( d3d_dev->context_mutex );
 }
+
+void d3d11_pic_context_destroy(picture_context_t *);
+picture_context_t *d3d11_pic_context_copy(picture_context_t *);
 
 #endif /* include-guard */

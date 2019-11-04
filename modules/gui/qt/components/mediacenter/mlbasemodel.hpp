@@ -44,8 +44,6 @@ public:
 
     Q_INVOKABLE void sortByColumn(QByteArray name, Qt::SortOrder order);
 
-    Q_INVOKABLE virtual QObject *get(unsigned int idx) const = 0;
-
     Q_PROPERTY( MLParentId parentId READ parentId WRITE setParentId NOTIFY parentIdChanged RESET unsetParentId )
     Q_PROPERTY( MCMediaLib* ml READ ml WRITE setMl )
     Q_PROPERTY( unsigned int maxItems MEMBER m_nb_max_items )
@@ -140,14 +138,14 @@ public:
         vlc_mutex_locker lock( &m_item_lock );
         if ( m_initialized == false )
         {
+            m_item_list = const_cast<MLSlidingWindowModel<T>*>(this)->fetch();
             m_total_count = countTotalElements();
             m_initialized = true;
-            m_item_list = const_cast<MLSlidingWindowModel<T>*>(this)->fetch();
         }
         return m_total_count;
     }
 
-    QObject* get(unsigned int idx) const override
+    virtual T* get(unsigned int idx) const
     {
         vlc_mutex_locker lock( &m_item_lock );
         T* obj = item( idx );

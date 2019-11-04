@@ -33,6 +33,7 @@
 #include <vlc_plugin.h>
 #include <vlc_filter.h>
 #include <vlc_picture.h>
+#include <vlc_codec.h>
 
 #define COBJMACROS
 #include <d3d11.h>
@@ -40,9 +41,6 @@
 #include "d3d11_filters.h"
 #include "d3d11_processor.h"
 #include "../../video_chroma/d3d11_fmt.h"
-
-typedef picture_sys_d3d11_t VA_PICSYS;
-#include "../../codec/avcodec/va_surface.h"
 
 #ifdef __MINGW32__
 #define D3D11_VIDEO_PROCESSOR_FILTER_CAPS_BRIGHTNESS   0x1
@@ -196,7 +194,7 @@ static picture_t *Filter(filter_t *p_filter, picture_t *p_pic)
 {
     filter_sys_t *p_sys = p_filter->p_sys;
 
-    picture_sys_d3d11_t *p_src_sys = ActivePictureSys(p_pic);
+    picture_sys_d3d11_t *p_src_sys = ActiveD3D11PictureSys(p_pic);
     if (FAILED( D3D11_Assert_ProcessorInput(p_filter, &p_sys->d3d_proc, p_src_sys) ))
     {
         picture_Release( p_pic );
@@ -584,5 +582,18 @@ vlc_module_begin()
     add_submodule()
     set_callbacks( D3D11OpenCPUConverter, D3D11CloseCPUConverter )
     set_capability( "video converter", 10 )
+
+    add_submodule()
+    set_description(N_("Direct3D11"))
+    set_callback_dec_device( D3D11OpenDecoderDeviceW8, 20 )
+
+    add_submodule()
+    set_description(N_("Direct3D11"))
+    set_callback_dec_device( D3D11OpenDecoderDeviceAny, 8 )
+#if VLC_WINSTORE_APP
+    /* LEGACY, the d3dcontext and swapchain were given by the host app */
+    add_integer("winrt-d3dcontext",    0x0, NULL, NULL, true) /* ID3D11DeviceContext* */
+#endif /* VLC_WINSTORE_APP */
+    add_shortcut ("d3d11-device")
 
 vlc_module_end()

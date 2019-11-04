@@ -52,6 +52,7 @@
 #include "dialogs/gototime.hpp"
 #include "dialogs/podcast_configuration.hpp"
 #include "dialogs/toolbar.hpp"
+#include "dialogs/toolbareditor.hpp"
 #include "dialogs/plugins.hpp"
 #include "dialogs/epg.hpp"
 #include "dialogs/errors.hpp"
@@ -314,9 +315,10 @@ void DialogsProvider::podcastConfigureDialog()
 
 void DialogsProvider::toolbarDialog()
 {
-    ToolbarEditDialog *toolbarEditor = new ToolbarEditDialog( (QWidget *)p_intf->p_sys->p_mi, p_intf );
+    ToolbarEditorDialog *toolbarEditor = new ToolbarEditorDialog( (QWidget *)p_intf->p_sys->p_mi, p_intf);
     if( toolbarEditor->exec() == QDialog::Accepted )
         emit toolBarConfUpdated();
+    delete toolbarEditor;
 }
 
 void DialogsProvider::pluginDialog()
@@ -677,7 +679,7 @@ void DialogsProvider::streamingDialog( QWidget *parent,
         s->setAttribute( Qt::WA_QuitOnClose, false ); // See #4883
         if( s->exec() == QDialog::Accepted )
         {
-            outputMRLs.append(s->getMrl());
+            outputMRLs.append(s->getChain());
             delete s;
         }
         else
@@ -702,7 +704,7 @@ void DialogsProvider::streamingDialog( QWidget *parent,
         }
     }
 
-    /* Get SoutMRL(s) */
+    /* Get SoutChain(s) */
     if( !outputMRLs.isEmpty() )
     {
         QVector<vlc::playlist::Media> outputMedias;

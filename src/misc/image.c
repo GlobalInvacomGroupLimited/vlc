@@ -656,12 +656,6 @@ vlc_fourcc_t image_Mime2Fourcc( const char *psz_mime )
     return 0;
 }
 
-static int video_update_format( decoder_t *p_dec )
-{
-    p_dec->fmt_out.video.i_chroma = p_dec->fmt_out.i_codec;
-    return 0;
-}
-
 static decoder_t *CreateDecoder( image_handler_t *p_image, const es_format_t *fmt )
 {
     decoder_t *p_dec;
@@ -678,7 +672,6 @@ static decoder_t *CreateDecoder( image_handler_t *p_image, const es_format_t *fm
     static const struct decoder_owner_callbacks dec_cbs =
     {
         .video = {
-            .format_update = video_update_format,
             .queue = ImageQueueVideo,
         },
     };
@@ -779,23 +772,12 @@ static void DeleteEncoder( encoder_t * p_enc )
     vlc_object_delete(p_enc);
 }
 
-static picture_t *filter_new_picture( filter_t *p_filter )
-{
-    return picture_NewFromFormat( &p_filter->fmt_out.video );
-}
-
-static const struct filter_video_callbacks image_filter_cbs =
-{
-    .buffer_new = filter_new_picture,
-};
-
 static filter_t *CreateConverter( vlc_object_t *p_this, const es_format_t *p_fmt_in,
                                const video_format_t *p_fmt_out )
 {
     filter_t *p_filter;
 
     p_filter = vlc_custom_create( p_this, sizeof(filter_t), "filter" );
-    p_filter->owner.video = &image_filter_cbs;
 
     es_format_Copy( &p_filter->fmt_in, p_fmt_in );
     es_format_Copy( &p_filter->fmt_out, p_fmt_in );

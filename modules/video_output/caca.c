@@ -350,6 +350,30 @@ static void Manage(vout_display_t *vd)
 }
 
 /**
+ * Close a libcaca video output
+ */
+static void Close(vout_display_t *vd)
+{
+    vout_display_sys_t *sys = vd->sys;
+
+    if (sys->fifo != NULL) {
+        vlc_cancel(sys->thread);
+        vlc_join(sys->thread, NULL);
+        block_FifoRelease(sys->fifo);
+    }
+    if (sys->dither)
+        cucul_free_dither(sys->dither);
+    caca_free_display(sys->dp);
+    cucul_free_canvas(sys->cv);
+
+#if defined(_WIN32)
+    FreeConsole();
+#endif
+
+    free(sys);
+}
+
+/**
  * This function initializes libcaca vout method.
  */
 static int Open(vout_display_t *vd, const vout_display_cfg_t *cfg,
@@ -475,6 +499,7 @@ static int Open(vout_display_t *vd, const vout_display_cfg_t *cfg,
     vd->prepare = Prepare;
     vd->display = PictureDisplay;
     vd->control = Control;
+    vd->close = Close;
 
     /* Fix initial state */
     caca_refresh_display(sys->dp);
@@ -500,30 +525,6 @@ error:
     return VLC_EGENERIC;
 }
 
-/**
- * Close a libcaca video output
- */
-static void Close(vout_display_t *vd)
-{
-    vout_display_sys_t *sys = vd->sys;
-
-    if (sys->fifo != NULL) {
-        vlc_cancel(sys->thread);
-        vlc_join(sys->thread, NULL);
-        block_FifoRelease(sys->fifo);
-    }
-    if (sys->dither)
-        cucul_free_dither(sys->dither);
-    caca_free_display(sys->dp);
-    cucul_free_canvas(sys->cv);
-
-#if defined(_WIN32)
-    FreeConsole();
-#endif
-
-    free(sys);
-}
-
 /*****************************************************************************
  * Module descriptor
  *****************************************************************************/
@@ -532,5 +533,5 @@ vlc_module_begin()
     set_category(CAT_VIDEO)
     set_subcategory(SUBCAT_VIDEO_VOUT)
     set_description(N_("Color ASCII art video output"))
-    set_callbacks_display(Open, Close, 15)
+    set_callback_display(Open, 15)
 vlc_module_end()

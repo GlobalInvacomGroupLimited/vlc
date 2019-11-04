@@ -896,7 +896,8 @@ int SetupAudioES( demux_t *p_demux, mp4_track_t *p_track, MP4_Box_t *p_sample )
         case( VLC_FOURCC( '.', 'm', 'p', '3' ) ):
         case( VLC_FOURCC( 'm', 's', 0x00, 0x55 ) ):
         {
-            p_track->fmt.i_codec = VLC_CODEC_MPGA;
+            p_track->fmt.i_codec = VLC_CODEC_MP3;
+            p_track->fmt.b_packetized = false;
             break;
         }
         case ATOM_XiVs:
@@ -1006,7 +1007,23 @@ int SetupAudioES( demux_t *p_demux, mp4_track_t *p_track, MP4_Box_t *p_sample )
                 };
                 p_track->fmt.i_bitrate = 0;
                 if( BOXDATA(p_dac3)->i_bitrate_code < sizeof(pi_bitrate)/sizeof(*pi_bitrate) )
+                {
                     p_track->fmt.i_bitrate = pi_bitrate[BOXDATA(p_dac3)->i_bitrate_code] * 1000;
+
+                    if (pi_bitrate[BOXDATA(p_dac3)->i_bitrate_code] == 640
+                     && BOXDATA(p_dac3)->i_acmod == 7
+                     && BOXDATA(p_dac3)->i_lfeon == 1)
+                    {
+                        /* DD+ can be an optional codec, and is deployed as an
+                         * extension to a "core" AC-3 5.1 640kbit/s audiotrack.
+                         * In that case, the AC-3 track might have an EAC3
+                         * extension, therefore trigger the A52 packetizer to
+                         * detect it (this is needed for aout passhthrough
+                         * configuration). */
+
+                        p_track->fmt.b_packetized = false;
+                    }
+                }
             }
             break;
         }
