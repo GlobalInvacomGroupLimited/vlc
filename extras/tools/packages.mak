@@ -24,8 +24,8 @@ AUTOMAKE_URL=$(GNU)/automake/automake-$(AUTOMAKE_VERSION).tar.gz
 M4_VERSION=1.4.18
 M4_URL=$(GNU)/m4/m4-$(M4_VERSION).tar.gz
 
-PKGCFG_VERSION=0.29.2
-PKGCFG_URL=https://pkg-config.freedesktop.org/releases/pkg-config-0.29.2.tar.gz
+PKGCFG_VERSION=0.28-1
+PKGCFG_URL=$(SF)/pkgconfiglite/$(PKGCFG_VERSION)/pkg-config-lite-$(PKGCFG_VERSION).tar.gz
 
 TAR_VERSION=1.26
 TAR_URL=$(GNU)/tar/tar-$(TAR_VERSION).tar.bz2
