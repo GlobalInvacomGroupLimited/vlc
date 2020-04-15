@@ -59,115 +59,283 @@ fi
 
 # Use VLC boostrap arguments from VLC for Android
 VLC_BOOTSTRAP_ARGS="\
-    --disable-disc \
-    --enable-dvdread \
-    --enable-dvdnav \
-    --disable-dca \
-    --disable-goom \
-    --disable-chromaprint \
-    --disable-schroedinger \
-    --disable-sdl \
-    --disable-SDL_image \
-    --disable-fontconfig \
-    --enable-zvbi \
-    --disable-kate \
-    --disable-caca \
-    --disable-gettext \
-    --disable-mpcdec \
-    --disable-upnp \
-    --disable-gme \
-    --disable-tremor \
-    --enable-vorbis \
-    --disable-sidplay2 \
-    --disable-samplerate \
-    --disable-faad2 \
-    --enable-harfbuzz \
-    --enable-iconv \
-    --disable-aribb24 \
-    --disable-aribb25 \
-    --enable-mpg123 \
-    --disable-libdsm \
-    --enable-libarchive \
-    --disable-libmpeg2 \
-    --enable-soxr \
-    --enable-nfs \
-    --enable-microdns \
-    --disable-mad \
-    --disable-vncclient \
-    --disable-vnc \
-    --enable-jpeg \
-    --enable-libplacebo \
-    --enable-ad-clauses \
-    --disable-srt \
-    --enable-vpx \
-    --disable-x265 \
-    --disable-medialibrary \
-    --enable-dvbpsi
-"
+--disable-a52 \
+--enable-aom \
+--enable-aribb24 \
+--disable-aribb25 \
+--disable-asdcplib \
+--enable-ass \
+--enable-bitstream \
+--disable-bluray \
+--enable-boost \
+--disable-bpg \
+--disable-breakpad \
+--disable-caca \
+--disable-cddb \
+--disable-chromaprint \
+--disable-crystalhd \
+--disable-daala \
+--enable-dav1d \
+--disable-dca
+--disable-directx \
+--disable-dshow \
+--enable-dvbpsi \
+--disable-dvdcss \
+--disable-dvdnav \
+--disable-dvdread \
+--disable-dxvahd \
+--disable-ebml \
+--enable-faad2 \
+--disable-ffi \
+--enable-ffmpeg \
+--enable-flac \
+--disable-fluid \
+--disable-fluidlite \
+--disable-fontconfig \
+--enable-freetype2 \
+--disable-fribidi \
+--disable-fxc2 \
+--disable-gcrypt \
+--disable-gettext \
+--enable-glew \
+--disable-glib \
+--disable-glslang \
+--disable-gme \
+--enable-gmp \
+--enable-gnutls \
+--disable-goom \
+--disable-gpg-error \
+--disable-gsm \
+--disable-harfbuzz \
+--disable-iconv \
+--disable-jack \
+--disable-jpeg \
+--disable-kate \
+--disable-lame \
+--disable-libarchive \
+--disable-libdsm \
+--enable-libmpeg2 \
+--disable-libplacebo \
+--enable-libtasn1 \
+--disable-libxml2 \
+--enable-live555 \
+--disable-lua \
+--disable-luac \
+--enable-mad \
+--disable-matroska \
+--disable-medialibrary \
+--disable-mfx \
+--disable-microdns \
+--disable-modplug \
+--disable-mpcdec \
+--enable-mpg123 \
+--disable-mysofa \
+--disable-ncurses \
+--enable-nettle \
+--disable-nfs \
+--disable-nvcodec \
+--enable-ogg \
+--disable-openjpeg \
+--enable-opus \
+--enable-orc \
+--disable-png \
+--disable-postproc \
+--disable-projectM \
+--disable-protobuf \
+--disable-pthreads \
+--disable-pthread-stubs \
+--disable-qt \
+--disable-qtdeclarative \
+--disable-qtgraphicaleffects \
+--disable-qtquickcontrols2 \
+--disable-qtsvg \
+--enable-raptor \
+--enable-raptorrtp \
+--enable-regex \
+--disable-samplerate \
+--enable-schroedinger \
+--disable-sdl \
+--disable-SDL_image \
+--disable-shout \
+--disable-sidplay2 \
+--disable-smb2 \
+--disable-soxr \
+--disable-sparkle \
+--disable-spatialaudio \
+--disable-speex \
+--disable-speexdsp \
+--disable-sqlite \
+--disable-srt \
+--disable-ssh2 \
+--enable-taglib \
+--enable-theora \
+--disable-tiff \
+--disable-tiger \
+--disable-tremor \
+--disable-twolame \
+--disable-upnp \
+--disable-vncclient \
+--disable-vorbis \
+--disable-vorbisenc \
+--enable-vpx \
+--disable-wine-headers \
+--disable-x264 \
+--disable-x26410b \
+--disable-x265 \
+--disable-xau \
+--disable-xcb"
 
 ###########################
 # VLC CONFIGURE ARGUMENTS #
 ###########################
 
 VLC_CONFIGURE_ARGS="\
-    --disable-nls \
-    --enable-live555 \
-    --enable-avformat \
-    --enable-swscale \
-    --enable-avcodec \
-    --enable-opus \
-    --enable-opensles \
-    --enable-matroska \
-    --enable-taglib \
-    --enable-dvbpsi \
-    --disable-vlc --disable-shared \
-    --disable-update-check \
-    --disable-vlm \
-    --disable-dbus \
-    --enable-lua \
-    --disable-vcd \
-    --disable-v4l2 \
-    --disable-dvdread \
-    --enable-dvdnav \
-    --disable-bluray \
-    --disable-linsys \
-    --disable-decklink \
-    --disable-libva \
-    --disable-dv1394 \
-    --enable-mod \
-    --disable-sid \
-    --disable-gme \
-    --disable-tremor \
-    --disable-mad \
-    --enable-mpg123 \
-    --disable-dca \
-    --disable-sdl-image \
-    --enable-zvbi \
-    --disable-jack \
-    --disable-pulse \
-    --disable-alsa \
-    --disable-samplerate \
-    --disable-xcb \
-    --disable-qt \
-    --disable-skins2 \
-    --disable-mtp \
-    --disable-notify \
-    --enable-libass \
-    --disable-svg \
-    --disable-udev \
-    --enable-libxml2 \
-    --disable-caca \
-    --disable-goom \
-    --disable-projectm \
-    --enable-sout \
-    --enable-vorbis \
-    --disable-faad \
-    --disable-schroedinger \
-    --disable-vnc \
-    --enable-jpeg \
-    --enable-chromaprint=no \
-    --disable-wayland
-"
+  --disable-dbus \
+  --disable-sout \
+  --disable-lua \
+  --enable-archive \
+  --enable-live555 \
+  --disable-dc1394 \
+  --disable-dv1394 \
+  --disable-linsys \
+  --disable-dvdread \
+  --disable-dvdnav \
+  --disable-bluray \
+  --disable-opencv \
+  --disable-smbclient \
+  --disable-dsm \
+  --disable-sftp \
+  --disable-nfs \
+  --disable-smb2 \
+  --disable-v4l2 \
+  --disable-nvdec \
+  --disable-decklink \
+  --disable-vcd \
+  --disable-libcddb \
+  --disable-screen \
+  --disable-vnc \
+  --disable-freerdp \
+  --disable-asdcp \
+  --enable-dvbpsi \
+  --disable-gme \
+  --disable-sid \
+  --enable-ogg \
+  --disable-shout \
+  --disable-matroska \
+  --disable-mod \
+  --disable-mpc \
+  --disable-shine \
+  --disable-omxil \
+  --disable-rpi-omxil \
+  --disable-crystalhd \
+  --enable-mad \
+  --enable-mpg123 \
+  --disable-gst-decode \
+  --disable-merge-ffmpeg \
+  --enable-avcodec \
+  --enable-libva \
+  --disable-dxva2 \
+  --disable-d3d11va \
+  --enable-avformat \
+  --enable-swscale \
+  --disable-postproc \
+  --enable-faad \
+  --enable-aom \
+  --enable-dav1d \
+  --enable-vpx \
+  --disable-twolame \
+  --disable-fdkaac \
+  --disable-a52 \
+  --disable-dca \
+  --enable-flac \
+  --enable-libmpeg2 \
+  --disable-vorbis \
+  --disable-tremor \
+  --disable-speex \
+  --enable-opus \
+  --disable-spatialaudio \
+  --enable-theora \
+  --disable-oggspots \
+  --disable-daala \
+  --enable-schroedinger \
+  --disable-png \
+  --disable-jpeg \
+  --disable-bpg \
+  --disable-x262 \
+  --disable-x265 \
+  --disable-x264 \
+  --disable-x26410b \
+  --disable-mfx \
+  --disable-fluidsynth \
+  --disable-fluidlite \
+  --enable-zvbi \
+  --disable-telx \
+  --enable-aribsub \
+  --disable-aribb25 \
+  --disable-kate \
+  --disable-tiger \
+  --disable-css \
+  --disable-libplacebo \
+  --disable-gles2 \
+  --disable-vulkan \
+  --disable-xcb \
+  --enable-vdpau \
+  --disable-wayland \
+  --disable-sdl-image \
+  --enable-freetype \
+  --disable-fribidi \
+  --disable-harfbuzz \
+  --disable-fontconfig \
+  --enable-libass \
+  --disable-svg \
+  --disable-svgdec \
+  --disable-directx \
+  --disable-kms \
+  --disable-caca \
+  --disable-kva \
+  --disable-mmal \
+  --enable-pulse \
+  --enable-alsa \
+  --disable-oss \
+  --disable-sndio \
+  --disable-wasapi \
+  --disable-jack \
+  --disable-opensles \
+  --disable-samplerate \
+  --disable-soxr \
+  --disable-kai \
+  --disable-chromaprint \
+  --disable-chromecast \
+  --disable-qt \
+  --disable-qt-qml-cache \
+  --disable-qt-qml-debug \
+  --disable-skins2 \
+  --disable-libtar \
+  --disable-macosx \
+  --disable-sparkl \
+  --disable-minimal-macosx \
+  --disable-ncurses \
+  --disable-lirc \
+  --disable-srt \
+  --disable-goom \
+  --disable-projectm \
+  --disable-vsxu \
+  --disable-avahi \
+  --disable-udev \
+  --disable-mtp \
+  --disable-upnp \
+  --disable-microdns \
+  --disable-libxml2 \
+  --enable-libgcrypt \
+  --enable-gnutls \
+  --enable-taglib \
+  --disable-secret \
+  --disable-kwallet \
+  --disable-update-check \
+  --disable-osx-notifications \
+  --disable-notify \
+  --disable-medialibrary \
+  --disable-vlc --disable-shared"
 
 EXTRA_CFLAGS="${EXTRA_CFLAGS} -fpic"
 EXTRA_CXXFLAGS="${EXTRA_CXXFLAGS} -fexceptions -frtti"
@@ -177,7 +345,7 @@ EXTRA_CXXFLAGS="${EXTRA_CXXFLAGS} -D__STDC_FORMAT_MACROS=1 -D__STDC_CONSTANT_MAC
 cd contrib
 mkdir native
 cd native
-../bootstrap --disable-chromaprint --enable-dvbpsi ${VLC_BOOTSTRAP_ARGS}
+../bootstrap ${VLC_BOOTSTRAP_ARGS}
 
 echo "EXTRA_CFLAGS=${EXTRA_CFLAGS}" >> config.mak
 echo "EXTRA_CXXFLAGS=${EXTRA_CXXFLAGS}" >> config.mak
@@ -197,5 +365,5 @@ make $MAKEFLAGS
 #--enable-debug --disable-optimizations CFLAGS="-g -Og" CXXFLAGS="-g -Og"
 
 cd $TOP_LEVEL
-./configure --enable-chromaprint=no --disable-wayland ${VLC_CONFIGURE_ARGS}
+./configure ${VLC_CONFIGURE_ARGS}
 make $MAKEFLAGS
