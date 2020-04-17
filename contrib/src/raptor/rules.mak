@@ -6,7 +6,7 @@
 RAPTOR_URL     := https://github.com/GlobalInvacomGroupLimited/raptor.git
 
 ifndef CHECKOUT_TAG
-RAPTOR_HASH := 2f44e50290ea1fdd6822cd544ccf2cb760854a36
+RAPTOR_HASH := 9693dbd9d20c410706f87c1b5d31c925461a829c
 else
 RAPTOR_HASH=$(CHECKOUT_TAG)
 endif
@@ -65,4 +65,5 @@ raptor: raptor-$(RAPTOR_HASH).tar.xz .sum-raptor
 	cd raptor && $(HOSTVARS) ./configure $(HOSTCONF) --enable-static --disable-shared
 	cd raptor && $(MAKE)
 	cd raptor && $(MAKE) install
+	cd raptor && $(MAKE) install-pkgconfigDATA
 	touch $@

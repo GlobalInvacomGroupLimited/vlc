@@ -116,4 +116,5 @@ SUBDIRS=groupsock liveMedia UsageEnvironment BasicUsageEnvironment
 	cd $< && ./genMakefiles $(LIVE_TARGET)
 	cd $< && for subdir in $(SUBDIRS); do $(MAKE) $(HOSTVARS) -C $$subdir; done
 	cd $< && for subdir in $(SUBDIRS); do $(MAKE) $(HOSTVARS) -C $$subdir install; done
+	cd $< && $(MAKE) install_shared_libraries
 	touch $@

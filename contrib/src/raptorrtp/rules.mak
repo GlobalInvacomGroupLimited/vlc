@@ -4,7 +4,7 @@
 RAPTOR_RTP_GI_URL     := https://github.com/GlobalInvacomGroupLimited/raptorrtp.git
 
 ifndef CHECKOUT_TAG
-RAPTORRTP_HASH := 2a0e446033ceae98990015b599d84160a9b06b39
+RAPTORRTP_HASH := 1f75f06c9fa952aa9588387c43cf0b3665812bf2
 else
 RAPTORRTP_HASH := $(CHECKOUT_TAG)
 endif
@@ -63,4 +63,5 @@ raptorrtp: raptorrtp-$(RAPTORRTP_HASH).tar.xz .sum-raptorrtp
                                                             --enable-static --disable-shared --enable-logging
 	cd raptorrtp && $(MAKE)
 	cd raptorrtp && $(MAKE) install
+	cd raptorrtp && $(MAKE) install-pkgconfigDATA
 	touch $@
