@@ -739,7 +739,7 @@ static picture_pool_t *OutputPoolAlloc(vlc_object_t *obj,
     return vlc_vdp_output_pool_create(vdpau_dev, rgb_fmt, fmt, 3);
 }
 
-const struct vlc_video_context_operations vdpau_vctx_ops = {
+static const struct vlc_video_context_operations vdpau_vctx_ops = {
     NULL,
 };
 

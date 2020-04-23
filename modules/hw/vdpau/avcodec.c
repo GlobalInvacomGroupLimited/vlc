@@ -146,7 +146,7 @@ static void DestroyVDPAUVideoContext(void *private)
         vlc_vdp_video_destroy(pool[i]);
 }
 
-const struct vlc_video_context_operations vdpau_vctx_ops = {
+static const struct vlc_video_context_operations vdpau_vctx_ops = {
     DestroyVDPAUVideoContext,
 };
 
